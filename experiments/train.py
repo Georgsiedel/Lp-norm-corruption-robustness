@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 import os
+#os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 import torch
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 import torch.nn as nn
@@ -18,16 +19,15 @@ from torch.utils.data import DataLoader, Subset
 import torchvision
 import torchvision.transforms as transforms
 from sklearn.model_selection import train_test_split
-#os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 
 from experiments.network import WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
 from experiments.config import train_corruptions
 from experiments.config import combine_train_corruptions
-from experiments.config import test_corruptions
 from experiments.config import concurrent_combinations
 from experiments.config import train_aug_strat
 from experiments.config import aug_strat_check
+from torchvision.transforms.autoaugment import AugMix
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training with perturbations')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -124,12 +124,25 @@ def valid(pbar):
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-
-    transform_strategy = getattr(transforms, train_aug_strat)
-    transform_augmentation_strategy = transforms.Compose([
-        transform_strategy(),
-        transforms.ToTensor(),
-    ])
+    if aug_strat_check == True:
+        if train_aug_strat == 'AugMix': #this needed manual implementation due to Pytorch problems.
+            transform_augmentation_strategy = transforms.Compose([
+                AugMix(), #Normally, AugMix is provided as a transforms function in torchivion
+                transforms.ToTensor(),
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+            ])
+        else:
+            transform_strategy = getattr(transforms, train_aug_strat)
+            transform_augmentation_strategy = transforms.Compose([
+                transform_strategy(),
+                transforms.ToTensor(),
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+            ])
+        trainset_augmentation_strategy = torchvision.datasets.CIFAR10(root='./experiments/data', train=True,
+                                                                      download=True,
+                                                                      transform=transform_augmentation_strategy)
     transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
@@ -143,8 +156,6 @@ if __name__ == '__main__':
                                                         transform=transform_train)
     trainset = torchvision.datasets.CIFAR10(root='./experiments/data', train=True, download=True,
                                             transform=transform_test)
-    trainset_augmentation_strategy = torchvision.datasets.CIFAR10(root='./experiments/data', train=True, download=True,
-                                                        transform=transform_augmentation_strategy)
 
     # generate indices: instead of the actual data we pass in integers instead
     train_indices, val_indices, _, _ = train_test_split(
@@ -155,7 +166,7 @@ if __name__ == '__main__':
         random_state=1 #this is important to have the same validation split when calling train multiple times
     )
     # generate subset based on indices
-    if aug_strat_check:
+    if aug_strat_check == True:
         train_split = Subset(trainset_augmentation_strategy, train_indices)
         val_split = Subset(trainset, val_indices)
         print(train_aug_strat, 'is used')
@@ -165,7 +176,6 @@ if __name__ == '__main__':
     # create batches
     trainloader = DataLoader(train_split, batch_size=32, shuffle=True)    #, num_workers=2)
     validationloader = DataLoader(val_split, batch_size=32, shuffle=True) #, num_workers=2)
-
     # Construct model
     print('\nBuilding model..')
     net = WideResNet(28, 10, 0.3, 10)

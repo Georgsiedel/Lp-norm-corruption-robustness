@@ -25,11 +25,9 @@ runs = 1
 # Train network on CIFAR-10 for natural training, two versions of corruption training, and PGD adversarial training.
 # Progressively smaller learning rates are used over training
 print('Beginning training of Wide ResNet networks on CIFAR-10')
-#for run in range(4, runs):
 for run in range(0, runs):
     print("Training run #", run)
     if not combine_train_corruptions:
-        #for id, (noise_type, train_epsilon, max) in enumerate(train_corruptions[3:15]):
         for id, (noise_type, train_epsilon, max) in enumerate(train_corruptions):
             print("Corruption training: ", noise_type, train_epsilon)
             cmd0 = 'python experiments/train.py --noise={} --epsilon={} --epochs=85 --lr=0.01 --run={} --max={}'.format(
@@ -152,9 +150,9 @@ avg_report_frame = pd.DataFrame(avg_test_metrics, index=test_corruptions_string,
 max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
 std_report_frame = pd.DataFrame(std_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
 
-avg_report_frame.to_csv('./results/cifar10_metrics_test_avg.csv', index=True, header=True, sep=';')
-max_report_frame.to_csv('./results/cifar10_metrics_test_max.csv', index=True, header=True, sep=';')
-std_report_frame.to_csv('./results/cifar10_metrics_test_std.csv', index=True, header=True, sep=';')
+avg_report_frame.to_csv('./results/cifar10_metrics_test_avg.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+max_report_frame.to_csv('./results/cifar10_metrics_test_max.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+std_report_frame.to_csv('./results/cifar10_metrics_test_std.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
 
 #np.savetxt(
 #    './results/cifar10_metrics_test_avg.csv',

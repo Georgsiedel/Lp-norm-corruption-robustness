@@ -1,8 +1,49 @@
 import numpy as np
 
-train_corruptions = np.array([
+train_corruptions1 = np.array([
 ['standard', 0.0, False],
-#['uniform-linf', 0.02, False],
+#['uniform-linf', 0.01, False],
+['uniform-linf', 0.02, False],
+['uniform-linf', 0.03, False],
+#['uniform-linf', 0.05, False],
+#['uniform-linf', 0.1, False],
+#['uniform-linf-brightness', 0.05, False],
+#['uniform-linf-brightness', 0.2, False],
+['uniform-l0.5', 100000.0, False],
+['uniform-l0.5', 200000.0, False],
+#['uniform-l0.5', 500000.0, False],
+['uniform-l1', 40.0, False],
+['uniform-l1', 80.0, False],
+#['uniform-l1', 200.0, False],
+['uniform-l2', 1.0, False],
+['uniform-l2', 2.0, False],
+#['uniform-l2', 4.0, False],
+#['uniform-l5', 0.2, False],
+#['uniform-l5', 0.4, False],
+#['uniform-l5', 1.0, False],
+#['uniform-l10', 0.15, False],
+#['uniform-l10', 0.3, False],
+#['uniform-l10', 0.7, False],
+['uniform-l50', 0.1, False],
+['uniform-l50', 0.2, False],
+#['uniform-l50', 0.5, False],
+#['uniform-l200', 0.1, False],
+#['uniform-l200', 0.2, False],
+#['uniform-l200', 0.5, False],
+#['uniform-l0-salt-pepper', 0.01, True],
+#['uniform-l0-salt-pepper', 0.02, True],
+['uniform-l0-impulse-max', 0.01, True],
+['uniform-l0-impulse-max', 0.02, True],
+#['uniform-l0-impulse-max', 0.04, True],
+['uniform-l0-impulse-linear', 0.02, False],
+['uniform-l0-impulse-linear', 0.03, False],
+['uniform-l0-impulse-linear', 0.06, False]
+])
+
+train_corruptions = np.array([
+#['standard', 0.0, False],
+#['uniform-linf', 0.01, False],
+['uniform-linf', 0.02, False],
 #['uniform-linf', 0.03, False],
 #['uniform-linf', 0.05, False],
 #['uniform-linf', 0.1, False],
@@ -14,7 +55,7 @@ train_corruptions = np.array([
 #['uniform-l1', 40.0, False],
 #['uniform-l1', 80.0, False],
 #['uniform-l1', 200.0, False],
-#['uniform-l2', 1.0, False],
+['uniform-l2', 1.0, False],
 #['uniform-l2', 2.0, False],
 #['uniform-l2', 4.0, False],
 #['uniform-l5', 0.2, False],
@@ -31,19 +72,19 @@ train_corruptions = np.array([
 #['uniform-l200', 0.5, False],
 #['uniform-l0-salt-pepper', 0.01, True],
 #['uniform-l0-salt-pepper', 0.02, True],
-#['uniform-l0-impulse-max', 0.01, True],
+['uniform-l0-impulse-max', 0.01, True],
 #['uniform-l0-impulse-max', 0.02, True],
 #['uniform-l0-impulse-max', 0.04, True],
 #['uniform-l0-impulse-linear', 0.02, False],
-#['uniform-l0-impulse-linear', 0.03, False],
+['uniform-l0-impulse-linear', 0.03, False],
 #['uniform-l0-impulse-linear', 0.06, False]
 ])
 
 aug_strat_check = True
-train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
-concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
+concurrent_combinations = 2 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:
     model_count = 1

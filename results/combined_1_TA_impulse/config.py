@@ -1,7 +1,7 @@
 import numpy as np
 
 train_corruptions = np.array([
-['standard', 0.0, False],
+#['standard', 0.0, False],
 #['uniform-linf', 0.02, False],
 #['uniform-linf', 0.03, False],
 #['uniform-linf', 0.05, False],
@@ -31,7 +31,7 @@ train_corruptions = np.array([
 #['uniform-l200', 0.5, False],
 #['uniform-l0-salt-pepper', 0.01, True],
 #['uniform-l0-salt-pepper', 0.02, True],
-#['uniform-l0-impulse-max', 0.01, True],
+['uniform-l0-impulse-max', 0.01, True],
 #['uniform-l0-impulse-max', 0.02, True],
 #['uniform-l0-impulse-max', 0.04, True],
 #['uniform-l0-impulse-linear', 0.02, False],
@@ -40,7 +40,7 @@ train_corruptions = np.array([
 ])
 
 aug_strat_check = True
-train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
@@ -55,13 +55,7 @@ else:
 #define intensity (second column): max.-distance of random perturbations for model training and evaluation (gaussian: std-dev; l0: proportion of pixels corrupted; lp: epsilon)
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
-#['standard', 0.0, False],
-['uniform-linf', 0.01, False],
-['uniform-l0.5', 50000.0, False],
-['uniform-l1', 25.0, False],
-['uniform-l2', 0.5, False],
-['uniform-l10', 0.06, False],
-['uniform-l50', 0.05, False],
+['standard', 0.0, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
 ['uniform-linf', 0.05, False],

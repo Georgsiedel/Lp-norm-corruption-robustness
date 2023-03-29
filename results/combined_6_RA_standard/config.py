@@ -40,7 +40,7 @@ train_corruptions = np.array([
 ])
 
 aug_strat_check = True
-train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+train_aug_strat = 'RandAugment' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
