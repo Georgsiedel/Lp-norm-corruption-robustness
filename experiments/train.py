@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import argparse
 import random
-
+import importlib
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -22,11 +22,6 @@ from sklearn.model_selection import train_test_split
 
 from experiments.network import WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
-from experiments.config import train_corruptions
-from experiments.config import combine_train_corruptions
-from experiments.config import concurrent_combinations
-from experiments.config import train_aug_strat
-from experiments.config import aug_strat_check
 from torchvision.transforms.autoaugment import AugMix
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training with perturbations')
@@ -37,8 +32,11 @@ parser.add_argument('--epsilon', default=0.1, type=float, help='perturbation rad
 parser.add_argument('--epochs', default=30, type=int, help="number of epochs")
 parser.add_argument('--run', default=0, type=int, help='run number')
 parser.add_argument('--max', default=False, type=bool, help='sample max epsilon values only (True) or random values up to max epsilon (False)')
-
+parser.add_argument('--experiment', default=0, type=int, help='experiment number - each experiment is defined in module config{experiment}')
 args = parser.parse_args()
+
+configname = (f'experiments.config{args.experiment}')
+config = importlib.import_module(configname)
 
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 criterion = nn.CrossEntropyLoss()
@@ -56,9 +54,9 @@ def train(pbar):
         optimizer.zero_grad()
         inputs_pert = inputs
 
-        if combine_train_corruptions == True:
+        if config.combine_train_corruptions == True:
             for id, img in enumerate(inputs):
-                corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
+                corruptions_list = random.sample(list(config.train_corruptions), k=config.concurrent_combinations)
                 for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
                     train_epsilon = float(train_epsilon)
                     if max == 'False':
@@ -124,8 +122,8 @@ def valid(pbar):
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-    if aug_strat_check == True:
-        if train_aug_strat == 'AugMix': #this needed manual implementation due to Pytorch problems.
+    if config.aug_strat_check == True:
+        if config.train_aug_strat == 'AugMix': #this needed manual implementation due to Pytorch problems.
             transform_augmentation_strategy = transforms.Compose([
                 AugMix(), #Normally, AugMix is provided as a transforms function in torchivion
                 transforms.ToTensor(),
@@ -133,7 +131,7 @@ if __name__ == '__main__':
                 transforms.RandomHorizontalFlip(),
             ])
         else:
-            transform_strategy = getattr(transforms, train_aug_strat)
+            transform_strategy = getattr(transforms, config.train_aug_strat)
             transform_augmentation_strategy = transforms.Compose([
                 transform_strategy(),
                 transforms.ToTensor(),
@@ -166,10 +164,10 @@ if __name__ == '__main__':
         random_state=1 #this is important to have the same validation split when calling train multiple times
     )
     # generate subset based on indices
-    if aug_strat_check == True:
+    if config.aug_strat_check == True:
         train_split = Subset(trainset_augmentation_strategy, train_indices)
         val_split = Subset(trainset, val_indices)
-        print(train_aug_strat, 'is used')
+        print(config.train_aug_strat, 'is used')
     else:
         train_split = Subset(trainset_transformed, train_indices)
         val_split = Subset(trainset, val_indices)
@@ -187,10 +185,10 @@ if __name__ == '__main__':
     if args.resume:
         # Load checkpoint.
         print('\nResuming from checkpoint..')
-        if not combine_train_corruptions:
-            checkpoint = torch.load(f'./experiments/models/{args.noise}/cifar_epsilon_{args.epsilon}_run_{args.run}.pth')
+        if not config.combine_train_corruptions:
+            checkpoint = torch.load(f'./experiments/models/{args.noise}/epsilon_{args.epsilon}_run_{args.run}.pth')
         else:
-            checkpoint = torch.load(f'./experiments/models/cifar_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.pth')
+            checkpoint = torch.load(f'./experiments/models/config{args.experiment}_concurrent_{config.concurrent_combinations}_run_{args.run}.pth')
             
         net.load_state_dict(checkpoint['net'])
         start_epoch = checkpoint['epoch'] + 1
@@ -217,29 +215,29 @@ if __name__ == '__main__':
             'train_acc': train_acc,
             'epoch': start_epoch+args.epochs-1,
         }
-        if combine_train_corruptions == True:
-            torch.save(state, f'./experiments/models/cifar_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.pth')
+        if config.combine_train_corruptions == True:
+            torch.save(state, f'./experiments/models/config{args.experiment}_concurrent_{config.concurrent_combinations}_run_{args.run}.pth')
         else:
-            torch.save(state, f'./experiments/models/{args.noise}/cifar_epsilon_{args.epsilon}_run_{args.run}.pth')
+            torch.save(state, f'./experiments/models/{args.noise}/epsilon_{args.epsilon}_run_{args.run}.pth')
 
         print("Maximum test accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs)+1, "epochs")
 
-        if combine_train_corruptions:
+        if config.combine_train_corruptions:
             if args.resume:
-                old_train_accs = np.loadtxt(f'results/learning_curve_train_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.csv', delimiter=';')
+                old_train_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_train_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', delimiter=';')
                 train_accs = np.append(old_train_accs, train_accs)
-                old_valid_accs = np.loadtxt(f'results/learning_curve_valid_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.csv', delimiter=';')
+                old_valid_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_valid_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', delimiter=';')
                 valid_accs = np.append(old_valid_accs, valid_accs)
-            np.savetxt(f'results/learning_curve_train_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.csv', train_accs, delimiter=';')
-            np.savetxt(f'results/learning_curve_valid_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.csv', valid_accs, delimiter=';')
+            np.savetxt(f'results/config{args.experiment}_learning_curve_train_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', train_accs, delimiter=';')
+            np.savetxt(f'results/config{args.experiment}_learning_curve_valid_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', valid_accs, delimiter=';')
         else:
             if args.resume:
-                old_train_accs = np.loadtxt(f'results/learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
+                old_train_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
                 train_accs = np.append(old_train_accs, train_accs)
-                old_valid_accs = np.loadtxt(f'results/learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
+                old_valid_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
                 valid_accs = np.append(old_valid_accs, valid_accs)
-            np.savetxt(f'results/learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', train_accs, delimiter=';')
-            np.savetxt(f'results/learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', valid_accs, delimiter=';')
+            np.savetxt(f'results/config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', train_accs, delimiter=';')
+            np.savetxt(f'results/config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', valid_accs, delimiter=';')
 
         x = list(range(1, len(train_accs) + 1))
         plt.plot(x, train_accs, label='Train Accuracy')
@@ -249,7 +247,7 @@ if __name__ == '__main__':
         plt.ylabel('Accuracy')
         plt.xticks(np.arange(0, len(train_accs) + 1, (len(train_accs)) / 10))
         plt.legend(loc='best')
-        if combine_train_corruptions:
-            plt.savefig(f'results/learning_curve_combined_0_concurrent_{concurrent_combinations}_run_{args.run}.svg')
+        if config.combine_train_corruptions:
+            plt.savefig(f'results/config{args.experiment}_learning_curve_concurrent_{config.concurrent_combinations}_run_{args.run}.svg')
         else:
-            plt.savefig(f'results/learning_curve_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.svg')
+            plt.savefig(f'results/config{args.experiment}_learning_curve_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.svg')
