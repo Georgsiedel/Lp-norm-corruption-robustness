@@ -17,6 +17,7 @@ import torch.distributions as dist
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from torchvision import datasets, transforms
+import torchvision.models as models
 from torch.utils.data import DataLoader
 import os
 from experiments.network import WideResNet
@@ -86,14 +87,19 @@ def compute_metric_c(loader, loader_c, net, batchsize):
     acc = 100. * correct / total
     return (acc)
 
-def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c):
+def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype):
     test_transforms=transforms.Compose([transforms.ToTensor()])
     batchsize = 100
     test_loader = torch.utils.data.DataLoader(
         datasets.CIFAR10('./experiments/data', train=False, download=True, transform=test_transforms),
         batch_size=batchsize, shuffle=False)
     # Load model
-    model = WideResNet(28, 10, 0.3, 10)
+    if modeltype == 'wrn28':
+        model = WideResNet(28, 10, 0.3, 10)
+    else:
+        torchmodel = getattr(models, modeltype)
+        model = torchmodel()
+    model = model.to(device)
     if device == "cuda":
         model = torch.nn.DataParallel(model).cuda()
         cudnn.benchmark = True

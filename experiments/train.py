@@ -21,6 +21,7 @@ import torchvision.transforms as transforms
 from sklearn.model_selection import train_test_split
 
 from experiments.network import WideResNet
+import torchvision.models as models
 from experiments.sample_corrupted_img import sample_lp_corr
 from torchvision.transforms.autoaugment import AugMix
 
@@ -35,7 +36,7 @@ parser.add_argument('--max', default=False, type=bool, help='sample max epsilon 
 parser.add_argument('--experiment', default=0, type=int, help='experiment number - each experiment is defined in module config{experiment}')
 args = parser.parse_args()
 
-configname = (f'experiments.config{args.experiment}')
+configname = (f'experiments.configs.config{args.experiment}')
 config = importlib.import_module(configname)
 
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
@@ -128,6 +129,7 @@ if __name__ == '__main__':
                 AugMix(), #Normally, AugMix is provided as a transforms function in torchivion
                 transforms.ToTensor(),
                 transforms.RandomCrop(32, padding=4),
+                #transforms.Resize(224),
                 transforms.RandomHorizontalFlip(),
             ])
         else:
@@ -136,6 +138,7 @@ if __name__ == '__main__':
                 transform_strategy(),
                 transforms.ToTensor(),
                 transforms.RandomCrop(32, padding=4),
+                #transforms.Resize(224),
                 transforms.RandomHorizontalFlip(),
             ])
         trainset_augmentation_strategy = torchvision.datasets.CIFAR10(root='./experiments/data', train=True,
@@ -143,10 +146,12 @@ if __name__ == '__main__':
                                                                       transform=transform_augmentation_strategy)
     transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
+        #transforms.Resize(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
     ])
     transform_test = transforms.Compose([
+        #transforms.Resize(224),
         transforms.ToTensor(),
     ])
 
@@ -175,8 +180,12 @@ if __name__ == '__main__':
     trainloader = DataLoader(train_split, batch_size=32, shuffle=True)    #, num_workers=2)
     validationloader = DataLoader(val_split, batch_size=32, shuffle=True) #, num_workers=2)
     # Construct model
-    print('\nBuilding model..')
-    net = WideResNet(28, 10, 0.3, 10)
+    print('\nBuilding', config.modeltype, 'model')
+    if config.modeltype == 'wrn28':
+        net = WideResNet(28, 10, 0.3, 10)
+    else:
+        torchmodel = getattr(models, config.modeltype)
+        net = torchmodel()
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net)
@@ -186,9 +195,9 @@ if __name__ == '__main__':
         # Load checkpoint.
         print('\nResuming from checkpoint..')
         if not config.combine_train_corruptions:
-            checkpoint = torch.load(f'./experiments/models/{args.noise}/epsilon_{args.epsilon}_run_{args.run}.pth')
+            checkpoint = torch.load(f'./experiments/models/{args.noise}/{config.modeltype}_epsilon_{args.epsilon}_run_{args.run}.pth')
         else:
-            checkpoint = torch.load(f'./experiments/models/config{args.experiment}_concurrent_{config.concurrent_combinations}_run_{args.run}.pth')
+            checkpoint = torch.load(f'./experiments/models/{config.modeltype}_config{args.experiment}_concurrent_{config.concurrent_combinations}_run_{args.run}.pth')
             
         net.load_state_dict(checkpoint['net'])
         start_epoch = checkpoint['epoch'] + 1
@@ -216,28 +225,28 @@ if __name__ == '__main__':
             'epoch': start_epoch+args.epochs-1,
         }
         if config.combine_train_corruptions == True:
-            torch.save(state, f'./experiments/models/config{args.experiment}_concurrent_{config.concurrent_combinations}_run_{args.run}.pth')
+            torch.save(state, f'./experiments/models/{config.modeltype}_config{args.experiment}_concurrent_{config.concurrent_combinations}_run_{args.run}.pth')
         else:
-            torch.save(state, f'./experiments/models/{args.noise}/epsilon_{args.epsilon}_run_{args.run}.pth')
+            torch.save(state, f'./experiments/models/{args.noise}/{config.modeltype}_epsilon_{args.epsilon}_run_{args.run}.pth')
 
         print("Maximum test accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs)+1, "epochs")
 
         if config.combine_train_corruptions:
             if args.resume:
-                old_train_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_train_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', delimiter=';')
+                old_train_accs = np.loadtxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_train_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', delimiter=';')
                 train_accs = np.append(old_train_accs, train_accs)
-                old_valid_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_valid_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', delimiter=';')
+                old_valid_accs = np.loadtxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_valid_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', delimiter=';')
                 valid_accs = np.append(old_valid_accs, valid_accs)
-            np.savetxt(f'results/config{args.experiment}_learning_curve_train_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', train_accs, delimiter=';')
-            np.savetxt(f'results/config{args.experiment}_learning_curve_valid_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', valid_accs, delimiter=';')
+            np.savetxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_train_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', train_accs, delimiter=';')
+            np.savetxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_valid_concurrent_{config.concurrent_combinations}_run_{args.run}.csv', valid_accs, delimiter=';')
         else:
             if args.resume:
-                old_train_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
+                old_train_accs = np.loadtxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
                 train_accs = np.append(old_train_accs, train_accs)
-                old_valid_accs = np.loadtxt(f'results/config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
+                old_valid_accs = np.loadtxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
                 valid_accs = np.append(old_valid_accs, valid_accs)
-            np.savetxt(f'results/config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', train_accs, delimiter=';')
-            np.savetxt(f'results/config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', valid_accs, delimiter=';')
+            np.savetxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', train_accs, delimiter=';')
+            np.savetxt(f'results/{config.modeltype}_config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', valid_accs, delimiter=';')
 
         x = list(range(1, len(train_accs) + 1))
         plt.plot(x, train_accs, label='Train Accuracy')
@@ -248,6 +257,6 @@ if __name__ == '__main__':
         plt.xticks(np.arange(0, len(train_accs) + 1, (len(train_accs)) / 10))
         plt.legend(loc='best')
         if config.combine_train_corruptions:
-            plt.savefig(f'results/config{args.experiment}_learning_curve_concurrent_{config.concurrent_combinations}_run_{args.run}.svg')
+            plt.savefig(f'results/{config.modeltype}_config{args.experiment}_learning_curve_concurrent_{config.concurrent_combinations}_run_{args.run}.svg')
         else:
-            plt.savefig(f'results/config{args.experiment}_learning_curve_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.svg')
+            plt.savefig(f'results/{config.modeltype}_config{args.experiment}_learning_curve_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.svg')

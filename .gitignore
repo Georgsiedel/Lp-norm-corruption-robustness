@@ -2,3 +2,4 @@ experiments/models/
 experiments/.pytest_cache
 experiments/__pycache__
 experiments/data/
+experiments/configs/

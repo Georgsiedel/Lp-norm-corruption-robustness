@@ -8,20 +8,20 @@ import pandas as pd
 import importlib
 from experiments.eval import eval_metric
 
-experiments_number = 6
+experiments_number = 14
 
-for experiment in [0, 1, 2, 3, 7, 8]: #range(experiments_number):
-    configname = (f'experiments.config{experiment}')
+for experiment in [13]: #range(2, experiments_number):
+    configname = (f'experiments.configs.config{experiment}')
     config = importlib.import_module(configname)
 
     print('Starting experiment number', experiment)
     runs = 5
 
-
     # Train network on CIFAR-10 for natural training, two versions of corruption training, and PGD adversarial training.
     # Progressively smaller learning rates are used over training
-    print('Beginning training of Wide ResNet networks on CIFAR-10')
-    for run in range(1, runs):
+
+    print('Beginning training on CIFAR-10')
+    for run in range(0, runs):
         print("Training run #", run)
         if not config.combine_train_corruptions:
             for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
@@ -62,15 +62,15 @@ for experiment in [0, 1, 2, 3, 7, 8]: #range(experiments_number):
 
         if config.combine_train_corruptions:
             print("Corruption training of combined type")
-            filename = f'./experiments/models/config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
-            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c)
+            filename = f'./experiments/models/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
+            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype)
             test_metrics[:, 0] = np.array(test_metric_col)
             print(test_metric_col)
         else:
             for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                 print("Corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
-                filename = './experiments/models/{}/epsilon_{}_run_{}.pth'.format(noise_type, train_epsilon, run)
-                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c)
+                filename = './experiments/models/{}/{}_epsilon_{}_run_{}.pth'.format(noise_type, config.modeltype, train_epsilon, run)
+                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype)
                 test_metrics[:, idx] = np.array(test_metric_col)
 
         all_test_metrics[:config.test_count, :config.model_count, run] = test_metrics
@@ -104,6 +104,6 @@ for experiment in [0, 1, 2, 3, 7, 8]: #range(experiments_number):
     max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
     std_report_frame = pd.DataFrame(std_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
 
-    avg_report_frame.to_csv(f'./results/config{experiment}_metrics_test_avg.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
-    max_report_frame.to_csv(f'./results/config{experiment}_metrics_test_max.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
-    std_report_frame.to_csv(f'./results/config{experiment}_metrics_test_std.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    avg_report_frame.to_csv(f'./results/{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    max_report_frame.to_csv(f'./results/{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    std_report_frame.to_csv(f'./results/{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
