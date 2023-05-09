@@ -40,7 +40,7 @@ train_corruptions = np.array([
 #['uniform-l0-impulse-linear', 0.06, False]
 ])
 
-modeltype = 'mobilenet_v3_large'
+modeltype = 'wrn28'
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 

@@ -8,9 +8,9 @@ import pandas as pd
 import importlib
 from experiments.eval import eval_metric
 
-experiments_number = 14
+experiments_number = 10
 
-for experiment in [13]: #range(2, experiments_number):
+for experiment in [0]: #range(experiments_number):
     configname = (f'experiments.configs.config{experiment}')
     config = importlib.import_module(configname)
 
