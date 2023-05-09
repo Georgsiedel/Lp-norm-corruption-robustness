@@ -7,7 +7,7 @@ train_corruptions = np.array([
 #['uniform-linf', 0.03, False],
 #['uniform-linf', 0.05, False],
 #['uniform-linf', 0.1, False],
-['uniform-linf-brightness', 0.05, False],
+#['uniform-linf-brightness', 0.05, False],
 #['uniform-linf-brightness', 0.2, False],
 ['uniform-l0.5', 50000.0, False],
 ['uniform-l0.5', 100000.0, False],
