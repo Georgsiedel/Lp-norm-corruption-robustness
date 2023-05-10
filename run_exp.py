@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import os
-os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
+#os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 import numpy as np
 import pandas as pd
 import importlib
