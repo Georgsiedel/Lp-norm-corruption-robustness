@@ -1,7 +1,5 @@
-This is the code associated with the paper "Investigating the Corruption Robustness of Image Classifiers with Random Lp-norm Corruptions", published as a preprint version here:
-https://www.researchgate.net/publication/370617296_Investigating_the_Corruption_Robustness_of_Image_Classifiers_with_Random_Lp-norm_Corruptions 
-and here:
-https://arxiv.org/abs/2305.05400
+This is the code associated with the paper **"Investigating the Corruption Robustness of Image Classifiers with Random Lp-norm Corruptions"**, 
+published as a preprint version on [Researchgate](https://www.researchgate.net/publication/370617296_Investigating_the_Corruption_Robustness_of_Image_Classifiers_with_Random_Lp-norm_Corruptions) and [arXiv](https://arxiv.org/abs/2305.05400).
 
 run_exp.py is the test execution that calls train.py and eval.py modules from the experiments folder.
 run_exp.py uses various parameters for every experiment that are defined in a config file, stores at experiments/configs (example config0 file is given and can be adjusted).
