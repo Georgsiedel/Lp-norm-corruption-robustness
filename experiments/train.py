@@ -25,6 +25,16 @@ import torchvision.models as models
 from experiments.sample_corrupted_img import sample_lp_corr
 from torchvision.transforms.autoaugment import AugMix
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training with perturbations')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -32,7 +42,7 @@ parser.add_argument('--noise', default='gaussian', type=str, help='type of noise
 parser.add_argument('--epsilon', default=0.1, type=float, help='perturbation radius')
 parser.add_argument('--epochs', default=30, type=int, help="number of epochs")
 parser.add_argument('--run', default=0, type=int, help='run number')
-parser.add_argument('--max', default=False, type=bool, help='sample max epsilon values only (True) or random values up to max epsilon (False)')
+parser.add_argument('--max', type=str2bool, nargs='?', const=True, default=False, help='sample max epsilon values only (True) or random values up to max epsilon (False)')
 parser.add_argument('--experiment', default=0, type=int, help='experiment number - each experiment is defined in module config{experiment}')
 args = parser.parse_args()
 
