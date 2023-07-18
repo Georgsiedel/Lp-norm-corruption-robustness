@@ -7,15 +7,15 @@ import numpy as np
 import pandas as pd
 import importlib
 from experiments.eval import eval_metric
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+experiments_number = 14
 
-experiments_number = 10
-
-for experiment in [0]: #range(experiments_number):
+for experiment in [5, 6, 7, 8, 10, 11]: #range(experiments_number):
     configname = (f'experiments.configs.config{experiment}')
     config = importlib.import_module(configname)
 
     print('Starting experiment number', experiment)
-    runs = 5
+    runs = 1
 
     # Train network on CIFAR-10 for natural training, two versions of corruption training, and PGD adversarial training.
     # Progressively smaller learning rates are used over training
@@ -26,26 +26,14 @@ for experiment in [0]: #range(experiments_number):
         if not config.combine_train_corruptions:
             for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                 print("Corruption training: ", noise_type, train_epsilon)
-                cmd0 = 'python experiments/train.py --noise={} --epsilon={} --epochs=85 --lr=0.01 --run={} --max={} --experiment={}'.format(
-                    noise_type, train_epsilon, run, max, experiment)
-                cmd1 = 'python experiments/train.py --resume --noise={} --epsilon={} --epochs=10 --lr=0.002 --run={} --max={} --experiment={}'.format(
-                    noise_type, train_epsilon, run, max, experiment)
-                cmd2 = 'python experiments/train.py --resume --noise={} --epsilon={} --epochs=5 --lr=0.0004 --run={} --max={} --experiment={}'.format(
-                    noise_type, train_epsilon, run, max, experiment)
+                cmd0 = 'python experiments/train.py --noise={} --epsilon={} --epochs={} --lr={} --run={} --max={} --experiment={}'.format(
+                    noise_type, train_epsilon, config.epochs, config.learningrate, run, max, experiment)
                 os.system(cmd0)
-                os.system(cmd1)
-                os.system(cmd2)
         if config.combine_train_corruptions:
             print('Combined training')
-            cmd0 = 'python experiments/train.py --epochs=85 --lr=0.01 --run={} --experiment={}'.format(
-                run, experiment)
-            cmd1 = 'python experiments/train.py --resume --epochs=10 --lr=0.002 --run={} --experiment={}'.format(
-                run, experiment)
-            cmd2 = 'python experiments/train.py --resume --epochs=5 --lr=0.0004 --run={} --experiment={}'.format(
-                run, experiment)
+            cmd0 = 'python experiments/train.py --epochs={} --lr={} --run={} --experiment={}'.format(
+                config.epochs, config.learningrate, run, experiment)
             os.system(cmd0)
-            os.system(cmd1)
-            os.system(cmd2)
 
     # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
     print('Beginning metric evaluation')
@@ -62,15 +50,15 @@ for experiment in [0]: #range(experiments_number):
 
         if config.combine_train_corruptions:
             print("Corruption training of combined type")
-            filename = f'./experiments/models/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
-            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype)
+            filename = f'./experiments/models/{config.modeltype}/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
+            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelspecs, config.batchsize)
             test_metrics[:, 0] = np.array(test_metric_col)
             print(test_metric_col)
         else:
             for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                 print("Corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
-                filename = './experiments/models/{}/{}_epsilon_{}_run_{}.pth'.format(noise_type, config.modeltype, train_epsilon, run)
-                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype)
+                filename = f'./experiments/models/{config.modeltype}/{noise_type}/{config.modeltype}_epsilon_{train_epsilon}_run_{run}.pth'
+                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelspecs, config.batchsize)
                 test_metrics[:, idx] = np.array(test_metric_col)
 
         all_test_metrics[:config.test_count, :config.model_count, run] = test_metrics
@@ -104,6 +92,6 @@ for experiment in [0]: #range(experiments_number):
     max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
     std_report_frame = pd.DataFrame(std_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
 
-    avg_report_frame.to_csv(f'./results/{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
-    max_report_frame.to_csv(f'./results/{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
-    std_report_frame.to_csv(f'./results/{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    avg_report_frame.to_csv(f'./results/{config.modeltype}/{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    max_report_frame.to_csv(f'./results/{config.modeltype}/{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    std_report_frame.to_csv(f'./results/{config.modeltype}/{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')

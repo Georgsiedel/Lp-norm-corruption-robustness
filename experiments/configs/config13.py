@@ -1,65 +1,104 @@
 import numpy as np
 
 train_corruptions = np.array([
-['standard', 0.0, False],
-#['uniform-linf', 0.02, False],
-#['uniform-linf', 0.03, False],
-#['uniform-linf', 0.05, False],
-#['uniform-linf', 0.1, False],
-#['uniform-linf-brightness', 0.05, False],
-#['uniform-linf-brightness', 0.2, False],
+#['standard', 0.0, False],
+['uniform-linf', 0.01, False],
+['uniform-linf', 0.02, False],
+['uniform-linf', 0.03, False],
+['uniform-linf', 0.05, False],
+['uniform-linf', 0.075, False],
+['uniform-linf', 0.1, False],
+['uniform-linf', 0.125, False],
+['uniform-linf', 0.15, False],
+#['uniform-l0.5', 30000.0, False],
+#['uniform-l0.5', 50000.0, False],
 #['uniform-l0.5', 100000.0, False],
+#['uniform-l0.5', 150000.0, False],
 #['uniform-l0.5', 200000.0, False],
-#['uniform-l0.5', 500000.0, False],
+#['uniform-l0.5', 250000.0, False],
+#['uniform-l0.5', 300000.0, False],
+#['uniform-l0.5', 400000.0, False],
+#['uniform-l1', 15.0, False],
+#['uniform-l1', 25.0, False],
 #['uniform-l1', 40.0, False],
+#['uniform-l1', 60.0, False],
 #['uniform-l1', 80.0, False],
-#['uniform-l1', 200.0, False],
-#['uniform-l2', 1.0, False],
-#['uniform-l2', 2.0, False],
-#['uniform-l2', 4.0, False],
+#['uniform-l1', 110.0, False],
+#['uniform-l1', 150.0, False],
+#['uniform-l1', 180.0, False],
+['uniform-l2', 0.3, False],
+['uniform-l2', 0.5, False],
+['uniform-l2', 1.0, False],
+['uniform-l2', 1.5, False],
+['uniform-l2', 2.0, False],
+['uniform-l2', 2.5, False],
+['uniform-l2', 3.0, False],
+['uniform-l2', 4.0, False],
+#['uniform-l5', 0.05, False],
+#['uniform-l5', 0.1, False],
 #['uniform-l5', 0.2, False],
+#['uniform-l5', 0.3, False],
 #['uniform-l5', 0.4, False],
-#['uniform-l5', 1.0, False],
+#['uniform-l5', 0.5, False],
+#['uniform-l5', 0.65, False],
+#['uniform-l5', 0.8, False],
+#['uniform-l10', 0.04, False],
+#['uniform-l10', 0.07, False],
+#['uniform-l10', 0.1, False],
 #['uniform-l10', 0.15, False],
+#['uniform-l10', 0.2, False],
 #['uniform-l10', 0.3, False],
-#['uniform-l10', 0.7, False],
+#['uniform-l10', 0.4, False],
+#['uniform-l10', 0.5, False],
+#['uniform-l50', 0.04, False],
+#['uniform-l50', 0.07, False],
 #['uniform-l50', 0.1, False],
+#['uniform-l50', 0.15, False],
 #['uniform-l50', 0.2, False],
+#['uniform-l50', 0.3, False],
+#['uniform-l50', 0.4, False],
 #['uniform-l50', 0.5, False],
+#['uniform-l200', 0.04, False],
+#['uniform-l200', 0.07, False],
 #['uniform-l200', 0.1, False],
+#['uniform-l200', 0.15, False],
 #['uniform-l200', 0.2, False],
+#['uniform-l200', 0.3, False],
+#['uniform-l200', 0.4, False],
 #['uniform-l200', 0.5, False],
-#['uniform-l0-salt-pepper', 0.01, True],
-#['uniform-l0-salt-pepper', 0.02, True],
-#['uniform-l0-impulse-max', 0.01, True],
-#['uniform-l0-impulse-max', 0.02, True],
-#['uniform-l0-impulse-max', 0.04, True],
+['uniform-l0-impulse-max', 0.005, True],
+['uniform-l0-impulse-max', 0.01, True],
+['uniform-l0-impulse-max', 0.02, True],
+['uniform-l0-impulse-max', 0.03, True],
+['uniform-l0-impulse-max', 0.04, True],
+['uniform-l0-impulse-max', 0.06, True],
+['uniform-l0-impulse-max', 0.08, True],
+['uniform-l0-impulse-max', 0.1, True],
+#['uniform-l0-impulse-linear', 0.01, False],
 #['uniform-l0-impulse-linear', 0.02, False],
 #['uniform-l0-impulse-linear', 0.03, False],
-#['uniform-l0-impulse-linear', 0.06, False]
+#['uniform-l0-impulse-linear', 0.04, False],
+#['uniform-l0-impulse-linear', 0.07, False],
+#['uniform-l0-impulse-linear', 0.1, False],
+#['uniform-l0-impulse-linear', 0.125, False],
+#['uniform-l0-impulse-linear', 0.15, False]
 ])
 
-batchsize = 128
-lrschedule = 'CosineAnnealingWarmRestarts'
-learningrate = 0.002
-epochs = 300
-lrparams = {'T_0': 20, 'T_mult': 2}
-optimizer = 'AdamW'
-optimizerparams = {'weight_decay': 0.1}
-validontest= True
-modeltype = 'VisionTransformer'
-modelspecs = {'image_size': 32,
-            'patch_size' : 4,
-            'num_layers': 8,
-            'num_heads': 8,
-            'hidden_dim': 256,
-            'mlp_dim': 512,
-            'num_classes': 10,
-            'dropout': 0.2}
+batchsize = 32
+lrschedule = 'MultiStepLR'
+learningrate = 0.01
+epochs = 100
+lrparams = {'milestones': [85, 95], 'gamma': 0.2}
+optimizer = 'SGD'
+optimizerparams = {'momentum': 0.9,
+                   'weight_decay': 5e-4}
+validontest= False
+modeltype = 'wrn28'
+modelspecs = {}
 aug_strat_check = False
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 
-combine_train_corruptions = False #augment the train dataset with all corruptions
+combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:
@@ -72,7 +111,13 @@ else:
 #define intensity (second column): max.-distance of random perturbations for model training and evaluation (gaussian: std-dev; l0: proportion of pixels corrupted; lp: epsilon)
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
-['standard', 0.0, False],
+#['standard', 0.0, False],
+['uniform-linf', 0.01, False],
+['uniform-l0.5', 50000.0, False],
+['uniform-l1', 25.0, False],
+['uniform-l2', 0.5, False],
+['uniform-l10', 0.06, False],
+['uniform-l50', 0.05, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
 ['uniform-linf', 0.05, False],
@@ -111,7 +156,7 @@ test_corruptions = np.array([
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
-clean_validation = True
+
 if test_on_c:
     if combine_test_corruptions:
         test_count = 1 + 20

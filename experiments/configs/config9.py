@@ -1,7 +1,7 @@
 import numpy as np
 
 train_corruptions = np.array([
-['standard', 0.0, False],
+#['standard', 0.0, False],
 #['uniform-linf', 0.02, False],
 #['uniform-linf', 0.03, False],
 #['uniform-linf', 0.05, False],
@@ -32,14 +32,14 @@ train_corruptions = np.array([
 #['uniform-l0-salt-pepper', 0.01, True],
 #['uniform-l0-salt-pepper', 0.02, True],
 #['uniform-l0-impulse-max', 0.01, True],
-#['uniform-l0-impulse-max', 0.02, True],
+['uniform-l0-impulse-max', 0.02, True],
 #['uniform-l0-impulse-max', 0.04, True],
 #['uniform-l0-impulse-linear', 0.02, False],
 #['uniform-l0-impulse-linear', 0.03, False],
 #['uniform-l0-impulse-linear', 0.06, False]
 ])
 
-batchsize = 128
+batchsize = 64
 lrschedule = 'CosineAnnealingWarmRestarts'
 learningrate = 0.002
 epochs = 300

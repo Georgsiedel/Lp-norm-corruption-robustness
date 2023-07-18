@@ -87,9 +87,9 @@ def compute_metric_c(loader, loader_c, net, batchsize):
     acc = 100. * correct / total
     return (acc)
 
-def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype):
+def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelspecs, bsize):
     test_transforms=transforms.Compose([transforms.ToTensor()])
-    batchsize = 100
+    batchsize = bsize
     test_loader = torch.utils.data.DataLoader(
         datasets.CIFAR10('./experiments/data', train=False, download=True, transform=test_transforms),
         batch_size=batchsize, shuffle=False)
@@ -98,7 +98,7 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         model = WideResNet(28, 10, 0.3, 10)
     else:
         torchmodel = getattr(models, modeltype)
-        model = torchmodel()
+        model = torchmodel(**modelspecs)
     model = model.to(device)
     if device == "cuda":
         model = torch.nn.DataParallel(model).cuda()

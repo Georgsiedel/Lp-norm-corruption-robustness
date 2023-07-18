@@ -1,7 +1,7 @@
 import numpy as np
 
 train_corruptions = np.array([
-['standard', 0.0, False],
+#['standard', 0.0, False],
 #['uniform-linf', 0.02, False],
 #['uniform-linf', 0.03, False],
 #['uniform-linf', 0.05, False],
@@ -31,7 +31,7 @@ train_corruptions = np.array([
 #['uniform-l200', 0.5, False],
 #['uniform-l0-salt-pepper', 0.01, True],
 #['uniform-l0-salt-pepper', 0.02, True],
-#['uniform-l0-impulse-max', 0.01, True],
+['uniform-l0-impulse-max', 0.01, True],
 #['uniform-l0-impulse-max', 0.02, True],
 #['uniform-l0-impulse-max', 0.04, True],
 #['uniform-l0-impulse-linear', 0.02, False],
@@ -39,7 +39,7 @@ train_corruptions = np.array([
 #['uniform-l0-impulse-linear', 0.06, False]
 ])
 
-batchsize = 128
+batchsize = 64
 lrschedule = 'CosineAnnealingWarmRestarts'
 learningrate = 0.002
 epochs = 300
@@ -56,10 +56,10 @@ modelspecs = {'image_size': 32,
             'mlp_dim': 512,
             'num_classes': 10,
             'dropout': 0.2}
-aug_strat_check = False
+aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 
-combine_train_corruptions = False #augment the train dataset with all corruptions
+combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:
@@ -111,7 +111,7 @@ test_corruptions = np.array([
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
-clean_validation = True
+
 if test_on_c:
     if combine_test_corruptions:
         test_count = 1 + 20
