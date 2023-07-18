@@ -7,39 +7,60 @@ import numpy as np
 import pandas as pd
 import importlib
 from experiments.eval import eval_metric
+import shutil
+import torch
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-experiments_number = 14
+torch.backends.cudnn.enabled = False
+experiments_number = 28
 
-for experiment in [5, 6, 7, 8, 10, 11]: #range(experiments_number):
+for experiment in [50]:#range(2, experiments_number):
     configname = (f'experiments.configs.config{experiment}')
     config = importlib.import_module(configname)
 
     print('Starting experiment number', experiment)
     runs = 1
 
-    # Train network on CIFAR-10 for natural training, two versions of corruption training, and PGD adversarial training.
-    # Progressively smaller learning rates are used over training
-
-    print('Beginning training on CIFAR-10')
+    print('Beginning training on', config.dataset, 'dataset')
     for run in range(0, runs):
+        torch.cuda.empty_cache()
         print("Training run #", run)
         if not config.combine_train_corruptions:
             for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
-                print("Corruption training: ", noise_type, train_epsilon)
-                cmd0 = 'python experiments/train.py --noise={} --epsilon={} --epochs={} --lr={} --run={} --max={} --experiment={}'.format(
-                    noise_type, train_epsilon, config.epochs, config.learningrate, run, max, experiment)
+                print("Corruption training: ", noise_type, train_epsilon, 'and max-training:', max)
+                cmd0 = "python experiments/train.py --noise={} --epsilon={} --max={} --run={} --experiment={} " \
+                       "--epochs={} --learningrate={} --dataset={} --validontest={} --lrschedule={} --lrparams=\"{}\" " \
+                       "--earlystop={} --earlystopPatience={} --optimizer={} --optimizerparams=\"{}\" --modeltype={} " \
+                       "--modelparams=\"{}\" --resize={} --aug_strat_check={} --train_aug_strat={} --jsd_loss={} " \
+                       "--mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} --concurrent_combinations={} " \
+                       "--batchsize={}".format(noise_type, train_epsilon, max, run, experiment, config.epochs,
+                                               config.learningrate, config.dataset, config.validontest, config.lrschedule,
+                                               config.lrparams, config.earlystop, config.earlystopPatience,
+                                               config.optimizer, config.optimizerparams, config.modeltype,
+                                               config.modelparams, config.resize, config.aug_strat_check,
+                                               config.train_aug_strat, config.jsd_loss, config.mixup_alpha,
+                                               config.cutmix_alpha, config.combine_train_corruptions,
+                                               config.concurrent_combinations, config.batchsize)
                 os.system(cmd0)
+
         if config.combine_train_corruptions:
             print('Combined training')
-            cmd0 = 'python experiments/train.py --epochs={} --lr={} --run={} --experiment={}'.format(
-                config.epochs, config.learningrate, run, experiment)
+            cmd0 = "python experiments/train.py --run={} --experiment={} --epochs={} --learningrate={} --dataset={} " \
+                   "--validontest={} --lrschedule={} --lrparams=\"{}\" --earlystop={} --earlystopPatience={} --optimizer={} " \
+                   "--optimizerparams=\"{}\" --modeltype={} --modelparams=\"{}\" --resize={} --aug_strat_check={} " \
+                   "--train_aug_strat={} --jsd_loss={} --mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} " \
+                   "--concurrent_combinations={} --batchsize={}"\
+                .format(run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
+                        config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience,
+                        config.optimizer, config.optimizerparams, config.modeltype, config.modelparams, config.resize,
+                        config.aug_strat_check, config.train_aug_strat, config.jsd_loss, config.mixup_alpha,
+                        config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations, config.batchsize)
             os.system(cmd0)
 
     # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
     print('Beginning metric evaluation')
     # Evaluation on train/test set respectively
     all_test_metrics = np.empty([config.test_count, config.model_count, runs])
-
     avg_test_metrics = np.empty([config.test_count, config.model_count])
     std_test_metrics = np.empty([config.test_count, config.model_count])
     max_test_metrics = np.empty([config.test_count, config.model_count])
@@ -50,16 +71,17 @@ for experiment in [5, 6, 7, 8, 10, 11]: #range(experiments_number):
 
         if config.combine_train_corruptions:
             print("Corruption training of combined type")
-            filename = f'./experiments/models/{config.modeltype}/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
-            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelspecs, config.batchsize)
+            filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
+            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize)
             test_metrics[:, 0] = np.array(test_metric_col)
             print(test_metric_col)
         else:
             for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                 print("Corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
-                filename = f'./experiments/models/{config.modeltype}/{noise_type}/{config.modeltype}_epsilon_{train_epsilon}_run_{run}.pth'
-                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelspecs, config.batchsize)
+                filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/{config.modeltype}_{noise_type}_epsilon_{train_epsilon}_{max}_run_{run}.pth'
+                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize)
                 test_metrics[:, idx] = np.array(test_metric_col)
+                print(test_metric_col)
 
         all_test_metrics[:config.test_count, :config.model_count, run] = test_metrics
 
@@ -78,7 +100,7 @@ for experiment in [5, 6, 7, 8, 10, 11]: #range(experiments_number):
         train_corruptions_string = np.array([','.join(row) for row in train_corruptions_string])
 
     if config.test_on_c == True:
-        test_corruptions_string = np.loadtxt('./experiments/data/cifar-10-c/labels.txt', dtype=list)
+        test_corruptions_string = np.loadtxt('./experiments/data/labels.txt', dtype=list)
 
     if config.combine_test_corruptions == True:
         test_corruptions_label = ['config']
@@ -92,6 +114,27 @@ for experiment in [5, 6, 7, 8, 10, 11]: #range(experiments_number):
     max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
     std_report_frame = pd.DataFrame(std_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
 
-    avg_report_frame.to_csv(f'./results/{config.modeltype}/{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
-    max_report_frame.to_csv(f'./results/{config.modeltype}/{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
-    std_report_frame.to_csv(f'./results/{config.modeltype}/{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True, sep=';', float_format='%1.3f', decimal=',')
+    if config.combine_train_corruptions == True:
+        avg_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True,
+                                sep=';', float_format='%1.3f', decimal=',')
+        max_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True,
+                                sep=';', float_format='%1.3f', decimal=',')
+        std_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True,
+                                sep=';', float_format='%1.3f', decimal=',')
+        shutil.copyfile(f'./experiments/configs/config{experiment}.py',
+                        f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/config{experiment}.py')
+    else:
+        avg_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True,
+                                sep=';', float_format='%1.3f', decimal=',')
+        max_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True,
+                                sep=';', float_format='%1.3f', decimal=',')
+        std_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True,
+                                sep=';', float_format='%1.3f', decimal=',')
+        shutil.copyfile(f'./experiments/configs/config{experiment}.py',
+                        f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/config{experiment}.py')

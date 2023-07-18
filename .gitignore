@@ -1,4 +1,7 @@
-experiments/models/
+experiments/models/*
+!experiments/models/README.md
 experiments/.pytest_cache
 experiments/__pycache__
-experiments/data/
+experiments/data/*
+!experiments/data/labels.txt
+experiments/checkpoint.pt

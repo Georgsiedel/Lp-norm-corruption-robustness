@@ -45,20 +45,17 @@ def sample_lp_corr(noise_type, epsilon, img, density_distribution):
                 img_corr[0].view(-1)[pixel-1] = max_pixel
                 img_corr[1].view(-1)[pixel-1] = max_pixel
                 img_corr[2].view(-1)[pixel-1] = max_pixel
-        elif noise_type == 'uniform-l0-impulse-max':
+        elif noise_type == 'uniform-l0-impulse':
             img_corr = img
             pixels = []
             for j in range(round(epsilon * torch.numel(img_corr))):
                 pixels.append(random.randint(0, torch.numel(img_corr)))
-            for pixel in pixels:
-                img_corr.view(-1)[pixel-1] = random.choice([0, 1])
-        elif noise_type == 'uniform-l0-impulse-linear':
-            img_corr = img
-            pixels = []
-            for j in range(round(epsilon * torch.numel(img_corr))):
-                pixels.append(random.randint(0, torch.numel(img_corr)))
-            for pixel in pixels:
-                img_corr.view(-1)[pixel-1] = random.randint(0, 255) / 255
+            if density_distribution == 'max':
+                for pixel in pixels:
+                    img_corr.view(-1)[pixel-1] = random.choice([0, 1])
+            else:
+                for pixel in pixels:
+                    img_corr.view(-1)[pixel - 1] = random.randint(0, 255) / 255
         elif 'uniform-l' in noise_type:  #Calafiore1998: Uniform Sample Generation in lp Balls for Probabilistic Robustness Analysis
             lp = [float(x) for x in re.findall(r'-?\d+\.?\d*', noise_type)]  # extract Lp-number from args.noise variable
             lp = lp[0]
