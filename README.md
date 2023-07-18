@@ -1,6 +1,6 @@
 This is the code associated with the paper 
 
-**"Investigating the Corruption Robustness of Image Classifiers with Random Lp-norm Corruptions"** (Link tba)
+**"Investigating the Corruption Robustness of Image Classifiers with Random Lp-norm Corruptions"** ([ArXiv](https://arxiv.org/abs/2305.05400))
 
 run_exp.py is the test execution that calls train.py and eval.py modules from the experiments folder.
 
