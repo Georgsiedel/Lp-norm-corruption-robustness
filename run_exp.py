@@ -9,9 +9,14 @@ import importlib
 from experiments.eval import eval_metric
 import shutil
 import torch
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-torch.backends.cudnn.enabled = False
+
+import torch.backends.cudnn as cudnn
+#os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+#torch.backends.cudnn.enabled = False
+#os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
+torch.cuda.set_device(0)
+cudnn.benchmark = False
+
 experiments_number = 28
 
 for experiment in [50]:#range(2, experiments_number):
@@ -33,14 +38,14 @@ for experiment in [50]:#range(2, experiments_number):
                        "--earlystop={} --earlystopPatience={} --optimizer={} --optimizerparams=\"{}\" --modeltype={} " \
                        "--modelparams=\"{}\" --resize={} --aug_strat_check={} --train_aug_strat={} --jsd_loss={} " \
                        "--mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} --concurrent_combinations={} " \
-                       "--batchsize={}".format(noise_type, train_epsilon, max, run, experiment, config.epochs,
+                       "--batchsize={} --number_workers={}".format(noise_type, train_epsilon, max, run, experiment, config.epochs,
                                                config.learningrate, config.dataset, config.validontest, config.lrschedule,
                                                config.lrparams, config.earlystop, config.earlystopPatience,
                                                config.optimizer, config.optimizerparams, config.modeltype,
                                                config.modelparams, config.resize, config.aug_strat_check,
                                                config.train_aug_strat, config.jsd_loss, config.mixup_alpha,
                                                config.cutmix_alpha, config.combine_train_corruptions,
-                                               config.concurrent_combinations, config.batchsize)
+                                               config.concurrent_combinations, config.batchsize, config.number_workers)
                 os.system(cmd0)
 
         if config.combine_train_corruptions:
@@ -49,12 +54,13 @@ for experiment in [50]:#range(2, experiments_number):
                    "--validontest={} --lrschedule={} --lrparams=\"{}\" --earlystop={} --earlystopPatience={} --optimizer={} " \
                    "--optimizerparams=\"{}\" --modeltype={} --modelparams=\"{}\" --resize={} --aug_strat_check={} " \
                    "--train_aug_strat={} --jsd_loss={} --mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} " \
-                   "--concurrent_combinations={} --batchsize={}"\
+                   "--concurrent_combinations={} --batchsize={} --number_workers={}"\
                 .format(run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
                         config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience,
                         config.optimizer, config.optimizerparams, config.modeltype, config.modelparams, config.resize,
                         config.aug_strat_check, config.train_aug_strat, config.jsd_loss, config.mixup_alpha,
-                        config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations, config.batchsize)
+                        config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
+                        config.batchsize, config.number_workers)
             os.system(cmd0)
 
     # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
@@ -72,14 +78,14 @@ for experiment in [50]:#range(2, experiments_number):
         if config.combine_train_corruptions:
             print("Corruption training of combined type")
             filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
-            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize)
+            test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize, config.number_workers)
             test_metrics[:, 0] = np.array(test_metric_col)
             print(test_metric_col)
         else:
             for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                 print("Corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
                 filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/{config.modeltype}_{noise_type}_epsilon_{train_epsilon}_{max}_run_{run}.pth'
-                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize)
+                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize, config.number_workers)
                 test_metrics[:, idx] = np.array(test_metric_col)
                 print(test_metric_col)
 

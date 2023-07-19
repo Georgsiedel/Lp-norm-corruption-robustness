@@ -128,7 +128,7 @@ def compute_metric_cifar_c(loader, loader_c, net, batchsize, resize):
     acc = 100. * correct / total
     return (acc)
 
-def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelparams, resize, dataset, bsize):
+def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelparams, resize, dataset, bsize, workers):
     if dataset == 'ImageNet':
         test_transforms = transforms.Compose([transforms.Resize(256),
                                               transforms.CenterCrop(224),
@@ -144,11 +144,12 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     load_helper = getattr(datasets, dataset)
     if dataset == 'ImageNet':
         test_loader = DataLoader(torchvision.datasets.ImageFolder(root='./experiments/data/imagenet/ILSVRC/Data/val',
-                                                    transform=test_transforms), batch_size=batchsize, shuffle =False)
+                                                    transform=test_transforms), batch_size=batchsize, shuffle =False,
+                                 pin_memory=True, num_workers=workers)
     else:
         test_loader = DataLoader(load_helper("./experiments/data",
-                            train=False, download=True, transform=test_transforms), batch_size=batchsize, shuffle =False)
-
+                            train=False, download=True, transform=test_transforms), batch_size=batchsize, shuffle =False,
+                                 pin_memory=True, num_workers=workers)
     #Load model
     if modeltype == 'wrn28':
         if dataset == 'CIFAR10':

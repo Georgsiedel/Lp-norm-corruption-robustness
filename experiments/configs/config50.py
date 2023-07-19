@@ -85,7 +85,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, False]
 ])
 
-batchsize = 128
+batchsize = 256
 dataset = 'ImageNet' #ImageNet #CIFAR100
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
@@ -96,10 +96,11 @@ earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
+number_workers = 4
 modeltype = 'resnet50'
 modelparams = {}
 resize = False
-aug_strat_check = False
+aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance

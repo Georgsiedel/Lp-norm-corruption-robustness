@@ -13,14 +13,10 @@ from tqdm import tqdm
 import os
 # os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 
-import torchmetrics.classification
 import torch
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
 import torch.nn as nn
 import torch.cuda.amp
 import torch.optim as optim
-import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader, Subset
 import torchvision
 import torchvision.transforms as transforms
@@ -35,12 +31,7 @@ from experiments.sample_corrupted_img import sample_lp_corr
 from experiments.earlystopping import EarlyStopping
 import experiments.mix_transforms as mix_transforms
 
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-torch.cuda.set_device(0)
-torch.backends.cudnn.enabled = False
-cudnn.benchmark = False
-
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -113,9 +104,10 @@ parser.add_argument('--combine_train_corruptions', type=str2bool, nargs='?', con
                     help='Whether to combine all training noise values by drawing from the randomly')
 parser.add_argument('--concurrent_combinations', default=1, type=int,
                     help='How many of the training noise values should be applied at once on one image. USe only if you defined multiple training noise values.')
+parser.add_argument('--number_workers', default=4, type=int,
+                    help='How many workers are launched to parallelize data loading. Experimental. 4 seems to make sense. More demand GPU memory, but maximize GPU usage.')
 
 args = parser.parse_args()
-
 configname = (f'experiments.configs.config{args.experiment}')
 config = importlib.import_module(configname)
 
@@ -200,6 +192,7 @@ def train(pbar):
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
+
         train_loss += loss.item()
         _, predicted = outputs.max(1)
         if np.ndim(targets) == 2:
@@ -331,9 +324,9 @@ if __name__ == '__main__':
     # create batches
     batchsize_train = args.batchsize
     batchsize_valid = args.batchsize
-
-    trainloader = DataLoader(trainset, batch_size=batchsize_train, shuffle=True, pin_memory=True, collate_fn=collate_fn, num_workers=0)
-    validationloader = DataLoader(validset, batch_size=batchsize_valid, shuffle=True, pin_memory=True, num_workers=0)
+    torch.multiprocessing.set_start_method('spawn')
+    trainloader = DataLoader(trainset, batch_size=batchsize_train, shuffle=True, pin_memory=True, collate_fn=collate_fn, num_workers=args.number_workers)
+    validationloader = DataLoader(validset, batch_size=batchsize_valid, shuffle=True, pin_memory=True, num_workers=args.number_workers)
 
     # Construct model
     print('\nBuilding', args.modeltype, 'model')
@@ -385,22 +378,24 @@ if __name__ == '__main__':
         print(args.train_aug_strat, 'is used')
     if args.jsd_loss == True:
         print('JSD loss is used')
+
     with tqdm(total=total_steps) as pbar:
-        for epoch in range(start_epoch, start_epoch + args.epochs):
-            train_acc = train(pbar)
-            valid_acc, valid_loss = valid(pbar)
-            train_accs.append(train_acc)
-            valid_accs.append(valid_acc)
+        with torch.autograd.set_detect_anomaly(False):
+            for epoch in range(start_epoch, start_epoch + args.epochs):
+                train_acc = train(pbar)
+                valid_acc, valid_loss = valid(pbar)
+                train_accs.append(train_acc)
+                valid_accs.append(valid_acc)
 
-            if args.lrschedule == 'ReduceLROnPlateau':
-                scheduler.step(valid_loss)
-            else:
-                scheduler.step()
+                if args.lrschedule == 'ReduceLROnPlateau':
+                    scheduler.step(valid_loss)
+                else:
+                    scheduler.step()
 
-            early_stopping(valid_loss, net)
-            if args.earlystop and early_stopping.early_stop:
-                print("Early stopping")
-                break
+                early_stopping(valid_loss, net)
+                if args.earlystop and early_stopping.early_stop:
+                    print("Early stopping")
+                    break
 
         # Save best epoch
         net.load_state_dict(torch.load('experiments/checkpoint.pt'))
