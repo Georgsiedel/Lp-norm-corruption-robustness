@@ -10,12 +10,8 @@ from experiments.eval import eval_metric
 import shutil
 import torch
 
-import torch.backends.cudnn as cudnn
-#os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-#torch.backends.cudnn.enabled = False
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
 #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
-torch.cuda.set_device(0)
-cudnn.benchmark = False
 
 experiments_number = 28
 

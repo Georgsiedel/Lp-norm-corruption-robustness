@@ -31,7 +31,11 @@ from experiments.sample_corrupted_img import sample_lp_corr
 from experiments.earlystopping import EarlyStopping
 import experiments.mix_transforms as mix_transforms
 
+import torch.backends.cudnn as cudnn
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#torch.backends.cudnn.enabled = False #this may resolve some cuDNN errors, but increases training time by ~200%
+torch.cuda.set_device(0)
+cudnn.benchmark = False #this slightly speeds up 32bit precision training (5%)
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -119,7 +123,6 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship'
 x_min = torch.tensor([0, 0, 0]).to(device).view([1, -1, 1, 1])
 x_max = torch.tensor([1, 1, 1]).to(device).view([1, -1, 1, 1])
 
-
 def train(pbar):
     """ Perform epoch of training"""
     net.train()
@@ -189,9 +192,11 @@ def train(pbar):
                 loss = jsdcrossentropy(outputs, targets)
             else:
                 loss = crossentropy(outputs, targets)
+
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
+        torch.cuda.synchronize()
 
         train_loss += loss.item()
         _, predicted = outputs.max(1)
@@ -289,11 +294,12 @@ if __name__ == '__main__':
                                          transform=transform_valid)
 
     if args.validontest == False:
+        validsplit = 0.2
         train_indices, val_indices, _, _ = train_test_split(
             range(len(trainset)),
             trainset.targets,
             stratify=trainset.targets,
-            test_size=0.2,
+            test_size=validsplit,
             random_state=args.run)  # same validation split when calling train multiple times, but a random new validation on multiple runs
         # generate subset based on indices
         trainset = Subset(trainset, train_indices)
@@ -355,12 +361,14 @@ if __name__ == '__main__':
         start_epoch = checkpoint['epoch'] + 1
 
     # Number of batches
-    if args.dataset == 'ImageNet':
-        total_steps = (1281167 / batchsize_train + 50000 / batchsize_valid) * args.epochs
+    if args.dataset == 'ImageNet' and args.validontest == True:
+        total_steps = round(1281167/batchsize_train + 50000/batchsize_valid) * args.epochs
+    elif args.dataset == 'ImageNet' and args.validontest == False:
+        total_steps = round(1281167*(1-validsplit)/batchsize_train + 1281167*validsplit/batchsize_valid) * args.epochs
     elif args.dataset == 'CIFAR10' and args.validontest == True:
-        total_steps = (50000 / batchsize_train + 10000 / batchsize_valid) * args.epochs
+        total_steps = round(50000/batchsize_train + 10000/batchsize_valid) * args.epochs
     elif args.dataset == 'CIFAR10' and args.validontest == False:
-        total_steps = (40000 / batchsize_train + 10000 / batchsize_valid) * args.epochs
+        total_steps = round(50000*(1-validsplit)/batchsize_train + 50000*validsplit/batchsize_valid) * args.epochs
 
     opti = getattr(optim, args.optimizer)
     optimizer = opti(net.parameters(), lr=args.learningrate, **args.optimizerparams)
@@ -380,7 +388,8 @@ if __name__ == '__main__':
         print('JSD loss is used')
 
     with tqdm(total=total_steps) as pbar:
-        with torch.autograd.set_detect_anomaly(False):
+        with torch.autograd.set_detect_anomaly(True, check_nan=False): #this may resolve some Cuda/cuDNN errors. check_nan=True
+        # increases 32bit precision train time by ~20% and causes errors due to nan values for mixep precision training.
             for epoch in range(start_epoch, start_epoch + args.epochs):
                 train_acc = train(pbar)
                 valid_acc, valid_loss = valid(pbar)
