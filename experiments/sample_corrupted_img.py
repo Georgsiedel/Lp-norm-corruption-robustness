@@ -71,7 +71,6 @@ def sample_lp_corr(noise_type, epsilon, img, density_distribution):
         else:
             img_corr = img
             print('Unknown type of noise')
-
     return img_corr
 
 

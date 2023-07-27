@@ -85,16 +85,23 @@ train_corruptions = np.array([
 ])
 
 batchsize = 32
+dataset = 'CIFAR10' #ImageNet #CIFAR100
+validontest = True
 lrschedule = 'MultiStepLR'
 learningrate = 0.01
 epochs = 100
 lrparams = {'milestones': [85, 95], 'gamma': 0.2}
+earlystop = False
+earlystopPatience = 15
+number_workers = 1
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9,
                    'weight_decay': 5e-4}
-validontest = False
 modeltype = 'wrn28'
-modelspecs = {}
+modelparams = {}
+resize = False
+jsd_loss = False
+
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 

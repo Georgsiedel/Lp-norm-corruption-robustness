@@ -105,24 +105,25 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, False]
 ])
 
-batchsize = 64
-dataset = 'ImageNet' #ImageNet #CIFAR100
+batchsize = 384
+dataset = 'CIFAR10' #ImageNet #CIFAR100
 validontest = True
-lrschedule = 'CosineAnnealingWarmRestarts'
-learningrate = 0.1
-epochs = 35
-lrparams = {'T_0': 5, 'T_mult': 2}
+lrschedule = 'MultiStepLR'
+learningrate = 0.02
+epochs = 200
+lrparams = {'milestones': [170, 190], 'gamma': 0.2}
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
-number_workers = 4
-modeltype = 'resnet50'
+number_workers = 1 #Imagenet:4, CIFAR:0/1
+modeltype = 'wrn28'
 modelparams = {}
 resize = False
-aug_strat_check = False
+aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
+jsdparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 
@@ -140,41 +141,106 @@ else:
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
 ['standard', 0.0, False],
+['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
-['uniform-linf', 0.05, False],
+['uniform-linf', 0.04, False],
+['uniform-linf', 0.06, False],
+['uniform-linf', 0.08, False],
 ['uniform-linf', 0.1, False],
-['uniform-linf-brightness', 0.05, False],
-['uniform-linf-brightness', 0.2, False],
+['uniform-linf', 0.12, False],
+['uniform-linf', 0.14, False],
+['uniform-linf', 0.16, False],
+['uniform-l0.5', 25000.0, False],
+['uniform-l0.5', 50000.0, False],
+['uniform-l0.5', 75000.0, False],
 ['uniform-l0.5', 100000.0, False],
+['uniform-l0.5', 150000.0, False],
 ['uniform-l0.5', 200000.0, False],
-['uniform-l0.5', 500000.0, False],
-['uniform-l1', 40.0, False],
-['uniform-l1', 80.0, False],
+['uniform-l0.5', 250000.0, False],
+['uniform-l0.5', 300000.0, False],
+['uniform-l0.5', 350000.0, False],
+['uniform-l0.5', 400000.0, False],
+['uniform-l1', 12.5, False],
+['uniform-l1', 25.0, False],
+['uniform-l1', 37.5, False],
+['uniform-l1', 50.0, False],
+['uniform-l1', 75.0, False],
+['uniform-l1', 100.0, False],
+['uniform-l1', 125.0, False],
+['uniform-l1', 150.0, False],
+['uniform-l1', 175.0, False],
 ['uniform-l1', 200.0, False],
+['uniform-l2', 0.25, False],
+['uniform-l2', 0.5, False],
+['uniform-l2', 0.75, False],
 ['uniform-l2', 1.0, False],
+['uniform-l2', 1.5, False],
 ['uniform-l2', 2.0, False],
+['uniform-l2', 2.5, False],
+['uniform-l2', 3.0, False],
+['uniform-l2', 3.5, False],
 ['uniform-l2', 4.0, False],
+['uniform-l5', 0.05, False],
+['uniform-l5', 0.1, False],
+['uniform-l5', 0.15, False],
 ['uniform-l5', 0.2, False],
+['uniform-l5', 0.3, False],
 ['uniform-l5', 0.4, False],
-['uniform-l5', 1.0, False],
-['uniform-l10', 0.15, False],
+['uniform-l5', 0.5, False],
+['uniform-l5', 0.6, False],
+['uniform-l5', 0.7, False],
+['uniform-l5', 0.8, False],
+['uniform-l10', 0.03, False],
+['uniform-l10', 0.06, False],
+['uniform-l10', 0.09, False],
+['uniform-l10', 0.12, False],
+['uniform-l10', 0.18, False],
+['uniform-l10', 0.24, False],
 ['uniform-l10', 0.3, False],
-['uniform-l10', 0.7, False],
+['uniform-l10', 0.36, False],
+['uniform-l10', 0.42, False],
+['uniform-l10', 0.48, False],
+['uniform-l50', 0.025, False],
+['uniform-l50', 0.05, False],
+['uniform-l50', 0.075, False],
 ['uniform-l50', 0.1, False],
+['uniform-l50', 0.15, False],
 ['uniform-l50', 0.2, False],
-['uniform-l50', 0.5, False],
+['uniform-l50', 0.25, False],
+['uniform-l50', 0.3, False],
+['uniform-l50', 0.35, False],
+['uniform-l50', 0.4, False],
+['uniform-l200', 0.025, False],
+['uniform-l200', 0.05, False],
+['uniform-l200', 0.075, False],
 ['uniform-l200', 0.1, False],
+['uniform-l200', 0.15, False],
 ['uniform-l200', 0.2, False],
-['uniform-l200', 0.5, False],
-['uniform-l0-salt-pepper', 0.01, True],
-['uniform-l0-salt-pepper', 0.02, True],
+['uniform-l200', 0.25, False],
+['uniform-l200', 0.3, False],
+['uniform-l200', 0.35, False],
+['uniform-l200', 0.4, False],
+['uniform-l0-impulse', 0.005, True],
 ['uniform-l0-impulse', 0.01, True],
+['uniform-l0-impulse', 0.015, True],
 ['uniform-l0-impulse', 0.02, True],
+['uniform-l0-impulse', 0.03, True],
 ['uniform-l0-impulse', 0.04, True],
+['uniform-l0-impulse', 0.06, True],
+['uniform-l0-impulse', 0.08, True],
+['uniform-l0-impulse', 0.1, True],
+['uniform-l0-impulse', 0.12, True],
+['uniform-l0-impulse', 0.01, False],
 ['uniform-l0-impulse', 0.02, False],
 ['uniform-l0-impulse', 0.03, False],
-['uniform-l0-impulse', 0.06, False]
+['uniform-l0-impulse', 0.04, False],
+['uniform-l0-impulse', 0.05, False],
+['uniform-l0-impulse', 0.07, False],
+['uniform-l0-impulse', 0.09, False],
+['uniform-l0-impulse', 0.11, False],
+['uniform-l0-impulse', 0.13, False],
+['uniform-l0-impulse', 0.15, False]
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
@@ -189,22 +255,3 @@ else:
         test_count = 1
     else:
         test_count = test_corruptions.shape[0]
-
-if __name__ == '__main__':
-    #show corrupted images of certain configuration
-    #use this to check whether corruptions are invisible or they make classes imperceptible
-    from sample_corrupted_img import sample_corr_img
-    import matplotlib.pyplot as plt
-    fig = sample_corr_img(3, False, 'uniform-l0-impulse-max', 0.01, 'no')
-    plt.show()
-
-    #calculate minimal distance of points from different classes
-    #from distance import get_nearest_oppo_dist
-    #import pandas as pd
-    #dist = np.inf #0.2, ..., 1, 2, ...,  np.inf
-    #traintrain_ret, traintest_ret, testtest_ret = get_nearest_oppo_dist(dist)
-    #ret = np.array([[traintrain_ret.min(), traintest_ret.min(), testtest_ret.min()], [traintrain_ret.mean(), traintest_ret.mean(), testtest_ret.mean()]])
-    #df_ret = pd.DataFrame(ret, columns=['Train-Train', 'Train-Test', 'Test-Test'], index=['Minimal Distance', 'Mean Distance'])
-    #print(df_ret)
-    #epsilon_min = ret[0, :].min()/2
-    #print("Epsilon: ", epsilon_min)

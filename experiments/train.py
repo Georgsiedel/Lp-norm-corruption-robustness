@@ -6,12 +6,10 @@ import argparse
 import ast
 import random
 import importlib
-
+import copy
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-import os
-# os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 
 import torch
 import torch.nn as nn
@@ -35,7 +33,7 @@ import torch.backends.cudnn as cudnn
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #torch.backends.cudnn.enabled = False #this may resolve some cuDNN errors, but increases training time by ~200%
 torch.cuda.set_device(0)
-cudnn.benchmark = False #this slightly speeds up 32bit precision training (5%)
+cudnn.benchmark = True #this slightly speeds up 32bit precision training (5%)
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -46,7 +44,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError(f'Error: Boolean value expected for argument {v}.')
-
 
 class str2dictAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -61,7 +58,6 @@ class str2dictAction(argparse.Action):
             raise argparse.ArgumentTypeError(f"Invalid dictionary format: {values}") from e
 
         setattr(namespace, self.dest, dictionary)
-
 
 parser = argparse.ArgumentParser(description='PyTorch Training with perturbations')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -91,7 +87,7 @@ parser.add_argument('--optimizerparams', default={'momentum': 0.9, 'weight_decay
                     action=str2dictAction, metavar='KEY=VALUE', help='parameters for the optimizer')
 parser.add_argument('--modeltype', default='wrn28', type=str,
                     help='Modeltype to train, use either defualt WRN28 or model from pytorch models')
-parser.add_argument('--modelparams', default="{}", type=str, action=str2dictAction, metavar='KEY=VALUE',
+parser.add_argument('--modelparams', default={}, type=str, action=str2dictAction, metavar='KEY=VALUE',
                     help='parameters for the chosen model')
 parser.add_argument('--resize', type=str2bool, nargs='?', const=False, default=False,
                     help='Resize a model to 224x224 pixels, standard for models like transformers.')
@@ -110,18 +106,80 @@ parser.add_argument('--concurrent_combinations', default=1, type=int,
                     help='How many of the training noise values should be applied at once on one image. USe only if you defined multiple training noise values.')
 parser.add_argument('--number_workers', default=4, type=int,
                     help='How many workers are launched to parallelize data loading. Experimental. 4 seems to make sense. More demand GPU memory, but maximize GPU usage.')
+parser.add_argument('--lossparams', default={'num_splits': 3, 'alpha': 12, 'smoothing': 0}, type=str, action=str2dictAction, metavar='KEY=VALUE',
+                    help='parameters for the JSD loss function')
+parser.add_argument('--RandomEraseProbability', default=0.0, type=float,
+                    help='probability of applying random erasing to an image')
+parser.add_argument('--warmupepochs', default=5, type=int,
+                    help='Number of Warmupepochs for stable training early on. Start with factor 10 lower learning rate')
+parser.add_argument('--normalize', type=str2bool, nargs='?', const=False, default=False,
+                    help='Whether to normalize input data to mean=0 and std=1')
 
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
 config = importlib.import_module(configname)
-
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
-crossentropy = nn.CrossEntropyLoss()
-jsdcrossentropy = JsdCrossEntropy(num_splits=3, alpha=12, smoothing=0)
-classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-# Bounds without normalization of inputs
-x_min = torch.tensor([0, 0, 0]).to(device).view([1, -1, 1, 1])
-x_max = torch.tensor([1, 1, 1]).to(device).view([1, -1, 1, 1])
+crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
+jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
+
+if args.dataset == 'CIFAR10' or 'CIFAR100':
+    num_classes = 10
+elif args.dataset == 'ImageNet':
+    num_classes = 1000
+elif args.dataset == 'TinyImageNet':
+    num_classes = 200
+collate_fn = None
+mixes = []
+if args.mixup_alpha > 0.0:
+    mixes.append(mix_transforms.RandomMixup(num_classes, p=1.0, alpha=args.mixup_alpha))
+if args.cutmix_alpha > 0.0:
+    mixes.append(mix_transforms.RandomCutmix(num_classes, p=1.0, alpha=args.cutmix_alpha))
+if mixes:
+    mixupcutmix = torchvision.transforms.RandomChoice(mixes)
+    def collate_fn(batch):
+        return mixupcutmix(*default_collate(batch))
+
+def calculate_steps():
+    if args.dataset == 'ImageNet':
+        steps = 1281167/args.batchsize * (args.epochs + args.warmupepochs)
+        if args.validontest == True:
+            steps += (50000/args.batchsize * (args.epochs + args.warmupepochs))
+    elif args.dataset == 'CIFAR10':
+        steps = 50000 / args.batchsize * (args.epochs + args.warmupepochs)
+        if args.validontest == True:
+            steps += (10000/args.batchsize * (args.epochs + args.warmupepochs))
+    if args.jsd_loss == True:
+        steps = steps * 3
+    total_steps = int(steps)
+    return total_steps
+
+def apply_augstrat(img):
+    img = img * 255.0
+    img = torch.clip(img, 0.0, 255.0)
+    img = img.type(torch.uint8)
+    if args.train_aug_strat == 'AugMix':
+        img = AugMix()(img)
+    else:
+        tf = getattr(transforms, args.train_aug_strat)
+        img = tf()(img)
+    img = img.type(torch.float32) / 255.0
+    return img
+
+def apply_lp_corruption(img):
+    if args.combine_train_corruptions == True:
+        corruptions_list = random.sample(list(config.train_corruptions), k=args.concurrent_combinations)
+        for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
+            train_epsilon = float(train_epsilon)
+            if max == 'True':
+                img = sample_lp_corr(noise_type, train_epsilon, img, 'other')
+            else:
+                img = sample_lp_corr(noise_type, train_epsilon, img, 'max')
+    else:
+        if args.max == 'True':
+            img = sample_lp_corr(args.noise, args.epsilon, img, 'other')
+        else:
+            img = sample_lp_corr(args.noise, args.epsilon, img, 'max')
+    return img
 
 def train(pbar):
     """ Perform epoch of training"""
@@ -135,65 +193,62 @@ def train(pbar):
 
         if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:  # split the three splits given in the batch through the AugMix function called in main
             inputs = torch.cat(inputs, 0)
-            inputs_orig, inputs, inputs_pert = torch.split(inputs, [batchsize_train, batchsize_train, batchsize_train])
-        else:  # create 3 splits for JSD loss
-            inputs_orig = inputs
-            inputs_pert = inputs
+            inputs_orig, inputs, inputs_pert = torch.split(inputs, int(len(inputs)/3))
+        elif args.jsd_loss == True:
+            inputs_orig, inputs_pert = copy.deepcopy(inputs), copy.deepcopy(inputs)
 
-        if args.aug_strat_check == True:
-            if not args.train_aug_strat == 'AugMix':
-                inputs = inputs * 255.0
-                inputs = torch.clip(inputs, 0.0, 255.0)
-                inputs = inputs.type(torch.uint8)
-                tf = getattr(transforms, args.train_aug_strat)
-                inputs = tf()(inputs)
-                inputs = inputs.type(torch.float32) / 255.0
+        for id, img1 in enumerate(inputs):
+            if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:
+                img2 = copy.deepcopy(inputs_pert[id])
+            elif args.jsd_loss == True:
+                img2 = copy.deepcopy(img1)
+            if args.aug_strat_check == True and not (args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
+                img1 = apply_augstrat(img1)
                 if args.jsd_loss == True:
-                    inputs_pert = inputs_pert * 255.0
-                    inputs_pert = torch.clip(inputs_pert, 0.0, 255.0)
-                    inputs_pert = inputs_pert.type(torch.uint8)
-                    tf = getattr(transforms, args.train_aug_strat)
-                    inputs_pert = tf()(inputs_pert)
-                    inputs_pert = inputs_pert.type(torch.float32) / 255.0
-            elif args.train_aug_strat == 'AugMix' and args.jsd_loss == False:
-                inputs = inputs * 255.0
-                inputs = torch.clip(inputs, 0.0, 255.0)
-                inputs = inputs.type(torch.uint8)
-                inputs = AugMix()(inputs)
-                inputs = inputs.type(torch.float32) / 255.0
-                inputs_pert = inputs
+                    img2 = apply_augstrat(img2)
 
-        if args.combine_train_corruptions == True:
-            for id, img in enumerate(inputs_pert):
-                corruptions_list = random.sample(list(config.train_corruptions), k=args.concurrent_combinations)
-                for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
-                    train_epsilon = float(train_epsilon)
-                    if max == False:
-                        img = sample_lp_corr(noise_type, train_epsilon, img, 'other')
-                    elif max == True:
-                        img = sample_lp_corr(noise_type, train_epsilon, img, 'max')
-                inputs_pert[id] = img
-        else:
-            for id, img in enumerate(inputs_pert):
-                if args.max == False:
-                    inputs_pert[id] = sample_lp_corr(args.noise, args.epsilon, img, 'other')
-                elif args.max == True:
-                    inputs_pert[id] = sample_lp_corr(args.noise, args.epsilon, img, 'max')
+            img1 = apply_lp_corruption(img1)
+            inputs[id] = img1
+            if args.jsd_loss == True:
+                img2 = apply_lp_corruption(img2)
+                inputs_pert[id] = img2
 
         if args.jsd_loss == True:
-            inputs_pert = torch.cat((inputs_orig, inputs, inputs_pert), 0)
-
+            inputs = torch.cat((inputs_orig, inputs, inputs_pert), 0)
         if args.resize == True and args.dataset == 'CIFAR10':
-            inputs_pert = transforms.Resize(224)(inputs_pert)
-        inputs_pert, targets = inputs_pert.to(device, dtype=torch.float), targets.to(device)
+            inputs = transforms.Resize(224)(inputs)
+        if args.dataset == 'CIFAR10' and args.normalize == True:
+            inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
+        elif args.dataset == 'CIFAR100' and args.normalize == True:
+            inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
+        elif args.dataset == 'ImageNet' and args.normalize == True:
+            inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+
+        inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():
-            outputs = net(inputs_pert)
+            outputs = net(inputs)
             if args.jsd_loss == True:
-                loss = jsdcrossentropy(outputs, targets)
+                if targets.dim() == 1:
+                    loss = jsdcrossentropy(outputs, targets)
+                else:
+                    logits_orig, logits_aug1, logits_aug2 = torch.split(outputs, int(len(outputs)/3))
+                    loss = crossentropy(logits_orig, targets)
+                    p_orig, p_aug1, p_aug2 = nn.functional.softmax(logits_orig, dim=1), \
+                                             nn.functional.softmax(logits_aug1, dim=1), \
+                                             nn.functional.softmax(logits_aug2, dim=1)
+
+                    # Clamp mixture distribution to avoid exploding KL divergence
+                    p_mixture = torch.clamp((p_orig + p_aug1 + p_aug2) / 3., 1e-7, 1).log()
+                    jsd_loss = args.lossparams["alpha"]*(nn.functional.kl_div(p_mixture, p_orig, reduction='batchmean')+
+                                  nn.functional.kl_div(p_mixture, p_aug1, reduction='batchmean')+
+                                  nn.functional.kl_div(p_mixture, p_aug2, reduction='batchmean')) / 3.
+                    loss += jsd_loss
             else:
                 loss = crossentropy(outputs, targets)
 
         scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_value_(net.parameters(), clip_value=1)
         scaler.step(optimizer)
         scaler.update()
         torch.cuda.synchronize()
@@ -210,6 +265,7 @@ def train(pbar):
         pbar.set_description('[Train] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(train_loss / (batch_idx + 1),
                                                                                  100. * correct / total,
                                                                                  correct, total))
+
         pbar.update(1)
 
     train_acc = 100. * correct / total
@@ -223,16 +279,22 @@ def valid(pbar):
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(validationloader):
-        inputs_pert = inputs
 
         if args.resize == True and args.dataset == 'CIFAR10':
-            inputs_pert = transforms.Resize(224)(inputs_pert)
-
-        inputs_pert, targets = inputs_pert.to(device, dtype=torch.float), targets.to(device)
+            inputs = transforms.Resize(224)(inputs)
+        if args.dataset == 'CIFAR10' and args.normalize == True:
+            inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
+        elif args.dataset == 'CIFAR100' and args.normalize == True:
+            inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
+        elif args.dataset == 'ImageNet' and args.normalize == True:
+            inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+        inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         targets_pert = targets
-        targets_pert_pred = net(inputs_pert)
 
-        loss = crossentropy(targets_pert_pred, targets_pert)
+        with torch.cuda.amp.autocast():
+            targets_pert_pred = net(inputs)
+            loss = crossentropy(targets_pert_pred, targets_pert)
+
         test_loss += loss.item()
         _, predicted = targets_pert_pred.max(1)
         total += targets_pert.size(0)
@@ -246,11 +308,7 @@ def valid(pbar):
     acc = 100. * correct / total
     return acc, test_loss
 
-
-if __name__ == '__main__':
-    # Load and transform data
-    print('Preparing data..')
-
+def create_transforms(dataset):
     # list of all data transformations used
     t = transforms.ToTensor()
     c32 = transforms.RandomCrop(32, padding=4)
@@ -258,21 +316,37 @@ if __name__ == '__main__':
     r256 = transforms.Resize(256)
     c224 = transforms.CenterCrop(224)
     rrc224 = transforms.RandomResizedCrop(224)
+    re = transforms.RandomErasing(p=args.RandomEraseProbability)
+    nc10 = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))
+    nc100 = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))
+    nIN = transforms.Normalize((0.485, 0.456, 0.406),(0.229, 0.224, 0.225))
+
     # transformations of validation set
-    if args.dataset == 'CIFAR10':
-        transform_valid = transforms.Compose([t])
-    elif args.dataset == 'ImageNet':
-        transform_valid = transforms.Compose([t, r256, c224])
+    transforms_valid = transforms.Compose([t])
+    if dataset == 'CIFAR10':
+        transforms_valid = transforms.Compose([transforms_valid])
+    elif dataset == 'CIFAR100':
+        transforms_valid = transforms.Compose([transforms_valid])
+    elif dataset == 'ImageNet':
+        transforms_valid = transforms.Compose([transforms_valid, r256, c224])
+
     # transformations of training set
-
-    transform_train = transforms.Compose([flip])
-    if args.dataset == 'CIFAR10':  # and args.aug_strat_check == True and args.train_aug_strat == 'AugMix':
-        transform_train = transforms.Compose([transform_train, c32])
-    elif args.dataset == 'ImageNet':  # and args.aug_strat_check == True and args.train_aug_strat == 'AugMix':
-        transform_train = transforms.Compose([transform_train, rrc224])
+    transforms_train = transforms.Compose([flip])
     if not (args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
-        transform_train = transforms.Compose([transform_train, t])
+        transforms_train = transforms.Compose([transforms_train, t, re])
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100':
+        transforms_train = transforms.Compose([transforms_train, c32])
+    elif dataset == 'ImageNet':
+        transforms_train = transforms.Compose([transforms_train, rrc224])
 
+    return transforms_train, transforms_valid
+
+
+if __name__ == '__main__':
+    # Load and transform data
+    print('Preparing data..')
+
+    transform_train, transform_valid = create_transforms(args.dataset)
     load_helper = getattr(torchvision.datasets, args.dataset)
 
     if args.dataset == 'ImageNet':
@@ -305,34 +379,19 @@ if __name__ == '__main__':
         trainset = Subset(trainset, train_indices)
         validset = Subset(trainset_clean, val_indices)
 
-    num_classes = len(trainset.classes)
-
     if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:
-        img_dim = 32 if args.dataset == 'CIFAR10' else 224
-        trainset = AugMixDataset(trainset, preprocess=transforms.Compose([transforms.ToTensor()]), width=3, severity=3,
-                                 img_size=img_dim)
+        if args.dataset == 'CIFAR10':
+            img_dim = 32
+        elif args.dataset == 'TinyImageNet':
+            img_dim = 64
+        else:
+            img_dim = 224
+        trainset = AugMixDataset(trainset, width=3, severity=3, preprocess=transforms.Compose([transforms.ToTensor(),
+                                transforms.RandomErasing(p=args.RandomEraseProbability)]), img_size=img_dim)
 
-    collate_fn = None
-    mixes = []
-    if args.mixup_alpha > 0.0:
-        mixes.append(mix_transforms.RandomMixup(num_classes, p=1.0, alpha=args.mixup_alpha))
-        print('Mixup is used for Training')
-    if args.cutmix_alpha > 0.0:
-        mixes.append(mix_transforms.RandomCutmix(num_classes, p=1.0, alpha=args.cutmix_alpha))
-        print('Cutmix is used for Training')
-    if mixes:
-        mixupcutmix = torchvision.transforms.RandomChoice(mixes)
-
-
-        def collate_fn(batch):
-            return mixupcutmix(*default_collate(batch))
-
-    # create batches
-    batchsize_train = args.batchsize
-    batchsize_valid = args.batchsize
     torch.multiprocessing.set_start_method('spawn')
-    trainloader = DataLoader(trainset, batch_size=batchsize_train, shuffle=True, pin_memory=True, collate_fn=collate_fn, num_workers=args.number_workers)
-    validationloader = DataLoader(validset, batch_size=batchsize_valid, shuffle=True, pin_memory=True, num_workers=args.number_workers)
+    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=collate_fn, num_workers=args.number_workers)
+    validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
 
     # Construct model
     print('\nBuilding', args.modeltype, 'model')
@@ -340,12 +399,12 @@ if __name__ == '__main__':
         net = WideResNet(28, 10, 0.3, num_classes)
     else:
         torchmodel = getattr(models, args.modeltype)
-        net = torchmodel(**args.modelparams)
+        net = torchmodel(num_classes = num_classes, **args.modelparams)
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net)
 
-    if args.resume:
+    if args.resume == 'True':
         # Load checkpoint.
         print('\nResuming from checkpoint..')
         if not args.combine_train_corruptions:
@@ -360,24 +419,16 @@ if __name__ == '__main__':
         net.load_state_dict(checkpoint['net'])
         start_epoch = checkpoint['epoch'] + 1
 
-    # Number of batches
-    if args.dataset == 'ImageNet' and args.validontest == True:
-        total_steps = round(1281167/batchsize_train + 50000/batchsize_valid) * args.epochs
-    elif args.dataset == 'ImageNet' and args.validontest == False:
-        total_steps = round(1281167*(1-validsplit)/batchsize_train + 1281167*validsplit/batchsize_valid) * args.epochs
-    elif args.dataset == 'CIFAR10' and args.validontest == True:
-        total_steps = round(50000/batchsize_train + 10000/batchsize_valid) * args.epochs
-    elif args.dataset == 'CIFAR10' and args.validontest == False:
-        total_steps = round(50000*(1-validsplit)/batchsize_train + 50000*validsplit/batchsize_valid) * args.epochs
-
     opti = getattr(optim, args.optimizer)
     optimizer = opti(net.parameters(), lr=args.learningrate, **args.optimizerparams)
 
+    warmupscheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=args.warmupepochs)
     schedule = getattr(optim.lr_scheduler, args.lrschedule)
-    scheduler = schedule(optimizer, **args.lrparams)
+    realscheduler = schedule(optimizer, **args.lrparams)
+    scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, realscheduler], milestones=[args.warmupepochs])
     scaler = torch.cuda.amp.GradScaler()
 
-    early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/checkpoint.pt')
+    early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/models/checkpoint.pt')
     train_accs = []
     valid_accs = []
     # Training loop
@@ -387,15 +438,16 @@ if __name__ == '__main__':
     if args.jsd_loss == True:
         print('JSD loss is used')
 
+    total_steps = calculate_steps()
+
     with tqdm(total=total_steps) as pbar:
-        with torch.autograd.set_detect_anomaly(True, check_nan=False): #this may resolve some Cuda/cuDNN errors. check_nan=True
+        with torch.autograd.set_detect_anomaly(False, check_nan=False): #this may resolve some Cuda/cuDNN errors. check_nan=True
         # increases 32bit precision train time by ~20% and causes errors due to nan values for mixep precision training.
             for epoch in range(start_epoch, start_epoch + args.epochs):
                 train_acc = train(pbar)
                 valid_acc, valid_loss = valid(pbar)
                 train_accs.append(train_acc)
                 valid_accs.append(valid_acc)
-
                 if args.lrschedule == 'ReduceLROnPlateau':
                     scheduler.step(valid_loss)
                 else:
@@ -407,7 +459,7 @@ if __name__ == '__main__':
                     break
 
         # Save best epoch
-        net.load_state_dict(torch.load('experiments/checkpoint.pt'))
+        net.load_state_dict(torch.load('experiments/models/checkpoint.pt'))
         state = {
             'net': net.state_dict(),
             # 'acc': max(valid_accs),
