@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [54, 58, 52, 51, 53, 55, 57]:#range(2, experiments_number):
+    for experiment in [58, 52, 53, 51, 55, 57]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
             train_corruptions_string = np.array([','.join(row) for row in train_corruptions_string])
 
         if config.test_on_c == True:
-            test_corruptions_string = np.loadtxt('./experiments/data/labels.txt', dtype=list)
+            test_corruptions_string = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
 
         if config.combine_test_corruptions == True:
             test_corruptions_label = ['config']
