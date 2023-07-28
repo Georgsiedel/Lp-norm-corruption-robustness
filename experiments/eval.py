@@ -20,30 +20,8 @@ from torchvision import datasets, transforms
 import torchvision.models as models
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-import os
 from experiments.network import WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
-
-parser = argparse.ArgumentParser(description='PyTorch Evaluation with perturbations')
-parser.add_argument('--test_on_c', type=str2bool, nargs='?', const=True, default=True, help='Whether to test on the C-benchmark by Hendrycks2019')
-parser.add_argument('--combine_test_corruptions', type=str2bool, nargs='?', const=True, default=False, help='Whether to combine all test noise values by drawing from the randomly')
-parser.add_argument('--batchsize', default=128, type=int, help='Images per batch - more means quicker training, but higher memory demand')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
-parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--noise', default='gaussian', type=str, help='type of noise')
-parser.add_argument('--epsilon', default=0.1, type=float, help='perturbation radius')
-
-args = parser.parse_args()
 
 criterion = nn.CrossEntropyLoss()
 # Bounds without normalization of inputs
