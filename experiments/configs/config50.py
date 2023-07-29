@@ -1,5 +1,4 @@
 import numpy as np
-import torchvision.models.mobilenet
 
 train_corruptions = np.array([
 #['standard', 0.0, False],
@@ -109,10 +108,10 @@ batchsize = 384
 dataset = 'CIFAR10' #ImageNet #CIFAR100
 normalize = True
 validontest = True
-lrschedule = 'MultiStepLR'
-learningrate = 0.03
-epochs = 200
-lrparams = {'milestones': [170, 190], 'gamma': 0.2}
+lrschedule = 'CosineAnnealingWarmRestarts'
+learningrate = 0.1
+epochs = 310
+lrparams = {'T_0': 10, 'T_mult': 2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15

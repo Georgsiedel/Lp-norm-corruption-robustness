@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [58, 52, 53, 51, 55, 57]:#range(2, experiments_number):
+    for experiment in [50, 56, 58, 53, 51, 55, 57]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 

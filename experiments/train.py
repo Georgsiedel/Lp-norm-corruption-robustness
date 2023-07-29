@@ -148,8 +148,6 @@ def calculate_steps():
         steps = 50000 / args.batchsize * (args.epochs + args.warmupepochs)
         if args.validontest == True:
             steps += (10000/args.batchsize * (args.epochs + args.warmupepochs))
-    if args.jsd_loss == True:
-        steps = steps * 3
     total_steps = int(steps)
     return total_steps
 

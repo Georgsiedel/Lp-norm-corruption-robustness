@@ -1,5 +1,4 @@
 import numpy as np
-import torchvision.models.mobilenet
 
 train_corruptions = np.array([
 #['standard', 0.0, False],
@@ -109,10 +108,10 @@ batchsize = 384
 dataset = 'CIFAR10' #ImageNet #CIFAR100
 normalize = True
 validontest = True
-lrschedule = 'MultiStepLR'
-learningrate = 0.03
-epochs = 200
-lrparams = {'milestones': [170, 190], 'gamma': 0.2}
+lrschedule = 'CosineAnnealingWarmRestarts'
+learningrate = 0.1
+epochs = 310
+lrparams = {'T_0': 10, 'T_mult': 2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
@@ -125,10 +124,10 @@ resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
-lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
+lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
 mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 1.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-RandomEraseProbability = 0.0
+RandomEraseProbability = 0.1
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
