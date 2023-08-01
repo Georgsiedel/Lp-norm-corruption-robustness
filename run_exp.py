@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [50, 56, 58, 53, 51, 55, 57]:#range(2, experiments_number):
+    for experiment in [53, 52, 51, 55, 57, 62]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
                            "--modelparams=\"{}\" --resize={} --aug_strat_check={} --train_aug_strat={} --jsd_loss={} " \
                            "--mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} --concurrent_combinations={} " \
                            "--batchsize={} --number_workers={} --lossparams=\"{}\" --RandomEraseProbability={} " \
-                           "--warmupepochs={} --normalize={}".format(noise_type, train_epsilon, max, run, experiment, config.epochs,
+                           "--warmupepochs={} --normalize={} --num_classes={}".format(noise_type, train_epsilon, max, run, experiment, config.epochs,
                                                    config.learningrate, config.dataset, config.validontest, config.lrschedule,
                                                    config.lrparams, config.earlystop, config.earlystopPatience,
                                                    config.optimizer, config.optimizerparams, config.modeltype,
@@ -46,7 +46,7 @@ if __name__ == '__main__':
                                                    config.cutmix_alpha, config.combine_train_corruptions,
                                                    config.concurrent_combinations, config.batchsize, config.number_workers,
                                                    config.lossparams, config.RandomEraseProbability, config.warmupepochs,
-                                                   config.normalize)
+                                                   config.normalize, config.num_classes)
                     os.system(cmd0)
 
             if config.combine_train_corruptions:
@@ -56,14 +56,14 @@ if __name__ == '__main__':
                        "--optimizerparams=\"{}\" --modeltype={} --modelparams=\"{}\" --resize={} --aug_strat_check={} " \
                        "--train_aug_strat={} --jsd_loss={} --mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} " \
                        "--concurrent_combinations={} --batchsize={} --number_workers={} --lossparams=\"{}\" " \
-                       "--RandomEraseProbability={} --warmupepochs={} --normalize={}"\
+                       "--RandomEraseProbability={} --warmupepochs={} --normalize={} --num_classes={}"\
                     .format(run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
                             config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience,
                             config.optimizer, config.optimizerparams, config.modeltype, config.modelparams, config.resize,
                             config.aug_strat_check, config.train_aug_strat, config.jsd_loss, config.mixup_alpha,
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
-                            config.warmupepochs, config.normalize)
+                            config.warmupepochs, config.normalize, config.num_classes)
                 os.system(cmd0)
 
         # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
@@ -81,14 +81,18 @@ if __name__ == '__main__':
             if config.combine_train_corruptions:
                 print("Corruption training of combined type")
                 filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
-                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize, config.number_workers)
+                test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
+                                              config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
+                                              config.number_workers, config.normalize, config.calculate_adv_distance)
                 test_metrics[:, 0] = np.array(test_metric_col)
                 print(test_metric_col)
             else:
                 for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                     print("Corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
                     filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/{config.modeltype}_{noise_type}_epsilon_{train_epsilon}_{max}_run_{run}.pth'
-                    test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c, config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize, config.number_workers)
+                    test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
+                                                  config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
+                                                  config.number_workers, config.normalize, config.calculate_adv_distance)
                     test_metrics[:, idx] = np.array(test_metric_col)
                     print(test_metric_col)
 
@@ -118,6 +122,10 @@ if __name__ == '__main__':
             test_corruptions_labels = config.test_corruptions.astype(str)
             test_corruptions_labels = np.array([','.join(row) for row in test_corruptions_labels])
             test_corruptions_string = np.append(test_corruptions_string, test_corruptions_labels)
+        if config.calculate_adv_distance == True:
+            test_corruptions_string = np.append(test_corruptions_string,
+                        ['Acc. from PGD Adv. distance calculation', 'Adv. Distance (misclassified images included)',
+                         'Adv. Distance (misclassified images 0)', 'Adv. Distance (misclassified images not included)'])
 
         avg_report_frame = pd.DataFrame(avg_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
         max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)

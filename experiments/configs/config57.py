@@ -105,30 +105,30 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, False]
 ])
 
-batchsize = 512
-dataset = 'CIFAR10' #ImageNet #CIFAR100
-normalize = False
+batchsize = 384
+dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet #CIFAR10
+normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
 learningrate = 0.1
 epochs = 310
 lrparams = {'T_0': 10, 'T_mult': 2}
-warmupepochs = 3
+warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
-optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
+optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
 number_workers = 1
-modeltype = 'resnet50'
-modelparams = {}
+modeltype = 'wrn28'
+modelparams = {'dropout_rate': 0.1}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
-jsd_loss = True
-lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0}
-mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+jsd_loss = False
+lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
+mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-RandomEraseProbability = 0.0
+RandomEraseProbability = 0.1
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
@@ -247,14 +247,14 @@ test_corruptions = np.array([
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
+calculate_adv_distance = True
 
+test_count = 1
 if test_on_c:
-    if combine_test_corruptions:
-        test_count = 1 + 20
-    else:
-        test_count = test_corruptions.shape[0] + 20
+    test_count += 19
+if combine_test_corruptions:
+    test_count += 1
 else:
-    if combine_test_corruptions:
-        test_count = 1
-    else:
-        test_count = test_corruptions.shape[0]
+    test_count += test_corruptions.shape[0]
+if calculate_adv_distance:
+    test_count += 4

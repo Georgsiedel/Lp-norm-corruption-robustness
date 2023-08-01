@@ -22,7 +22,7 @@ import torchvision.models as models
 from torchvision.transforms.autoaugment import AugMix
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataloader import default_collate
-from timm.loss import JsdCrossEntropy
+from experiments.jsd_loss import JsdCrossEntropy
 from experiments.augmix_orig import AugMixDataset
 from experiments.network import WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
@@ -114,6 +114,8 @@ parser.add_argument('--warmupepochs', default=5, type=int,
                     help='Number of Warmupepochs for stable training early on. Start with factor 10 lower learning rate')
 parser.add_argument('--normalize', type=str2bool, nargs='?', const=False, default=False,
                     help='Whether to normalize input data to mean=0 and std=1')
+parser.add_argument('--num_classes', default=10, type=int,
+                    help='Number of classes of the dataset')
 
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
@@ -122,18 +124,12 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
 jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
 
-if args.dataset == 'CIFAR10' or 'CIFAR100':
-    num_classes = 10
-elif args.dataset == 'ImageNet':
-    num_classes = 1000
-elif args.dataset == 'TinyImageNet':
-    num_classes = 200
 collate_fn = None
 mixes = []
 if args.mixup_alpha > 0.0:
-    mixes.append(mix_transforms.RandomMixup(num_classes, p=1.0, alpha=args.mixup_alpha))
+    mixes.append(mix_transforms.RandomMixup(args.num_classes, p=1.0, alpha=args.mixup_alpha))
 if args.cutmix_alpha > 0.0:
-    mixes.append(mix_transforms.RandomCutmix(num_classes, p=1.0, alpha=args.cutmix_alpha))
+    mixes.append(mix_transforms.RandomCutmix(args.num_classes, p=1.0, alpha=args.cutmix_alpha))
 if mixes:
     mixupcutmix = torchvision.transforms.RandomChoice(mixes)
     def collate_fn(batch):
@@ -144,7 +140,11 @@ def calculate_steps():
         steps = 1281167/args.batchsize * (args.epochs + args.warmupepochs)
         if args.validontest == True:
             steps += (50000/args.batchsize * (args.epochs + args.warmupepochs))
-    elif args.dataset == 'CIFAR10':
+    if args.dataset == 'TinyImageNet':
+        steps = 100000/args.batchsize * (args.epochs + args.warmupepochs)
+        if args.validontest == True:
+            steps += (10000/args.batchsize * (args.epochs + args.warmupepochs))
+    elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
         steps = 50000 / args.batchsize * (args.epochs + args.warmupepochs)
         if args.validontest == True:
             steps += (10000/args.batchsize * (args.epochs + args.warmupepochs))
@@ -182,65 +182,62 @@ def apply_lp_corruption(img):
 def train(pbar):
     """ Perform epoch of training"""
     net.train()
-    train_loss = 0
-    correct = 0
-    total = 0
+    correct, total, train_loss = 0, 0, 0
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         optimizer.zero_grad()
 
-        if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:  # split the three splits given in the batch through the AugMix function called in main
-            inputs = torch.cat(inputs, 0)
-            inputs_orig, inputs, inputs_pert = torch.split(inputs, int(len(inputs)/3))
-        elif args.jsd_loss == True:
-            inputs_orig, inputs_pert = copy.deepcopy(inputs), copy.deepcopy(inputs)
+        #if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:  # split the three splits given in the batch through the AugMix function called in main
+        #    inputs = torch.cat(inputs, 0)
+        #    inputs_orig, inputs, inputs_pert = torch.split(inputs, int(len(inputs)/3))
+        #elif args.jsd_loss == True:
+        inputs_orig, inputs_pert = copy.deepcopy(inputs), copy.deepcopy(inputs)
 
         for id, img1 in enumerate(inputs):
-            if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:
-                img2 = copy.deepcopy(inputs_pert[id])
-            elif args.jsd_loss == True:
+            #if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:
+            #    img2 = copy.deepcopy(inputs_pert[id])
+            #el
+            if args.jsd_loss == True:
                 img2 = copy.deepcopy(img1)
-            if args.aug_strat_check == True and not (args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
+            if args.aug_strat_check == True: #and not (args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
                 img1 = apply_augstrat(img1)
                 if args.jsd_loss == True:
                     img2 = apply_augstrat(img2)
 
-            img1 = apply_lp_corruption(img1)
-            inputs[id] = img1
+            inputs[id] = apply_lp_corruption(img1)
             if args.jsd_loss == True:
-                img2 = apply_lp_corruption(img2)
-                inputs_pert[id] = img2
+                inputs_pert[id] = apply_lp_corruption(img2)
 
         if args.jsd_loss == True:
             inputs = torch.cat((inputs_orig, inputs, inputs_pert), 0)
-        if args.resize == True and args.dataset == 'CIFAR10':
+        if args.resize == True and args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
             inputs = transforms.Resize(224)(inputs)
         if args.dataset == 'CIFAR10' and args.normalize == True:
             inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
         elif args.dataset == 'CIFAR100' and args.normalize == True:
             inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
-        elif args.dataset == 'ImageNet' and args.normalize == True:
+        elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet') and args.normalize == True:
             inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
 
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():
             outputs = net(inputs)
             if args.jsd_loss == True:
-                if targets.dim() == 1:
-                    loss = jsdcrossentropy(outputs, targets)
-                else:
-                    logits_orig, logits_aug1, logits_aug2 = torch.split(outputs, int(len(outputs)/3))
-                    loss = crossentropy(logits_orig, targets)
-                    p_orig, p_aug1, p_aug2 = nn.functional.softmax(logits_orig, dim=1), \
-                                             nn.functional.softmax(logits_aug1, dim=1), \
-                                             nn.functional.softmax(logits_aug2, dim=1)
+                #if targets.dim() == 1:
+                loss = jsdcrossentropy(outputs, targets)
+                #else:
+                #    logits_orig, logits_aug1, logits_aug2 = torch.split(outputs, int(len(outputs)/3))
+                #    loss = crossentropy(logits_orig, targets)
+                #    p_orig, p_aug1, p_aug2 = nn.functional.softmax(logits_orig, dim=1), \
+                #                             nn.functional.softmax(logits_aug1, dim=1), \
+                #                             nn.functional.softmax(logits_aug2, dim=1)
 
                     # Clamp mixture distribution to avoid exploding KL divergence
-                    p_mixture = torch.clamp((p_orig + p_aug1 + p_aug2) / 3., 1e-7, 1).log()
-                    jsd_loss = args.lossparams["alpha"]*(nn.functional.kl_div(p_mixture, p_orig, reduction='batchmean')+
-                                  nn.functional.kl_div(p_mixture, p_aug1, reduction='batchmean')+
-                                  nn.functional.kl_div(p_mixture, p_aug2, reduction='batchmean')) / 3.
-                    loss += jsd_loss
+                #    p_mixture = torch.clamp((p_orig + p_aug1 + p_aug2) / 3., 1e-7, 1).log()
+                #    jsd_loss = args.lossparams["alpha"]*(nn.functional.kl_div(p_mixture, p_orig, reduction='batchmean')+
+                #                  nn.functional.kl_div(p_mixture, p_aug1, reduction='batchmean')+
+                #                  nn.functional.kl_div(p_mixture, p_aug2, reduction='batchmean')) / 3.
+                #    loss += jsd_loss
             else:
                 loss = crossentropy(outputs, targets)
 
@@ -263,19 +260,16 @@ def train(pbar):
         pbar.set_description('[Train] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(train_loss / (batch_idx + 1),
                                                                                  100. * correct / total,
                                                                                  correct, total))
-
         pbar.update(1)
 
     train_acc = 100. * correct / total
     return train_acc
 
-
 def valid(pbar):
     """ Test current network on validation set"""
     net.eval()
-    test_loss = 0
-    correct = 0
-    total = 0
+    test_loss, correct, total = 0, 0, 0
+
     for batch_idx, (inputs, targets) in enumerate(validationloader):
 
         if args.resize == True and args.dataset == 'CIFAR10':
@@ -284,7 +278,7 @@ def valid(pbar):
             inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
         elif args.dataset == 'CIFAR100' and args.normalize == True:
             inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
-        elif args.dataset == 'ImageNet' and args.normalize == True:
+        elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet') and args.normalize == True:
             inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         targets_pert = targets
@@ -310,6 +304,7 @@ def create_transforms(dataset):
     # list of all data transformations used
     t = transforms.ToTensor()
     c32 = transforms.RandomCrop(32, padding=4)
+    c64 = transforms.RandomCrop(64, padding=8)
     flip = transforms.RandomHorizontalFlip()
     r256 = transforms.Resize(256)
     c224 = transforms.CenterCrop(224)
@@ -321,43 +316,41 @@ def create_transforms(dataset):
 
     # transformations of validation set
     transforms_valid = transforms.Compose([t])
-    if dataset == 'CIFAR10':
-        transforms_valid = transforms.Compose([transforms_valid])
-    elif dataset == 'CIFAR100':
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'TinyImageNet':
         transforms_valid = transforms.Compose([transforms_valid])
     elif dataset == 'ImageNet':
         transforms_valid = transforms.Compose([transforms_valid, r256, c224])
 
     # transformations of training set
     transforms_train = transforms.Compose([flip])
-    if not (args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
-        transforms_train = transforms.Compose([transforms_train, t, re])
+    #if not (args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
+    transforms_train = transforms.Compose([transforms_train, t, re])
     if dataset == 'CIFAR10' or dataset == 'CIFAR100':
         transforms_train = transforms.Compose([transforms_train, c32])
+    elif dataset == 'TinyImageNet':
+        transforms_train = transforms.Compose([transforms_train, c64])
     elif dataset == 'ImageNet':
         transforms_train = transforms.Compose([transforms_train, rrc224])
 
     return transforms_train, transforms_valid
 
-
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-
     transform_train, transform_valid = create_transforms(args.dataset)
-    load_helper = getattr(torchvision.datasets, args.dataset)
 
-    if args.dataset == 'ImageNet':
-        trainset = torchvision.datasets.ImageFolder(root='./experiments/data/imagenet/ILSVRC/Data/train',
+    if args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet':
+        trainset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{args.dataset}/train',
                                                     transform=transform_train)
         if args.validontest == True:
-            validset = torchvision.datasets.ImageFolder(root='./experiments/data/imagenet/ILSVRC/Data/val',
+            validset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{args.dataset}/val',
                                                         transform=transform_valid)
         else:
-            trainset_clean = torchvision.datasets.ImageFolder(root='./experiments/data/imagenet/ILSVRC/Data/train',
+            trainset_clean = torchvision.datasets.ImageFolder(root=f'./experiments/data/{args.dataset}/train',
                                                               transform=transform_valid)
 
-    if args.dataset == 'CIFAR10':
+    if args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
+        load_helper = getattr(torchvision.datasets, args.dataset)
         trainset = load_helper(root='./experiments/data', train=True, download=True, transform=transform_train)
         if args.validontest == True:
             validset = load_helper(root='./experiments/data', train=False, download=True, transform=transform_valid)
@@ -365,7 +358,7 @@ if __name__ == '__main__':
             trainset_clean = load_helper(root='./experiments/data', train=True, download=True,
                                          transform=transform_valid)
 
-    if args.validontest == False:
+    if args.validontest == False: #validation splitting
         validsplit = 0.2
         train_indices, val_indices, _, _ = train_test_split(
             range(len(trainset)),
@@ -377,27 +370,26 @@ if __name__ == '__main__':
         trainset = Subset(trainset, train_indices)
         validset = Subset(trainset_clean, val_indices)
 
-    if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:
-        if args.dataset == 'CIFAR10':
-            img_dim = 32
-        elif args.dataset == 'TinyImageNet':
-            img_dim = 64
-        else:
-            img_dim = 224
-        trainset = AugMixDataset(trainset, width=3, severity=3, preprocess=transforms.Compose([transforms.ToTensor(),
-                                transforms.RandomErasing(p=args.RandomEraseProbability)]), img_size=img_dim)
+    #if args.aug_strat_check == True and args.train_aug_strat == 'AugMix' and args.jsd_loss == True:
+    #    if args.dataset == 'CIFAR10'or args.dataset == 'CIFAR100':
+    #        img_dim = 32
+    #    elif args.dataset == 'TinyImageNet':
+    #        img_dim = 64
+    #    else:
+    #        img_dim = 224
+    #    trainset = AugMixDataset(trainset, width=3, severity=3, preprocess=transforms.Compose([transforms.ToTensor(),
+    #                            transforms.RandomErasing(p=args.RandomEraseProbability)]), img_size=img_dim)
 
-    torch.multiprocessing.set_start_method('spawn')
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=collate_fn, num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
 
     # Construct model
     print('\nBuilding', args.modeltype, 'model')
     if args.modeltype == 'wrn28':
-        net = WideResNet(28, 10, 0.3, num_classes)
+        net = WideResNet(depth = 28, widen_factor = 10, dropout_rate=args.modelparams['dropout_rate'], num_classes=args.num_classes)
     else:
         torchmodel = getattr(models, args.modeltype)
-        net = torchmodel(num_classes = num_classes, **args.modelparams)
+        net = torchmodel(num_classes = args.num_classes, **args.modelparams)
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net)

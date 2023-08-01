@@ -1,5 +1,4 @@
 import numpy as np
-import torchvision.models.mobilenet
 
 train_corruptions = np.array([
 #['standard', 0.0, False],
@@ -106,13 +105,13 @@ train_corruptions = np.array([
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100
+dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet #CIFAR10
 normalize = True
 validontest = True
-lrschedule = 'MultiStepLR'
-learningrate = 0.05
-epochs = 300
-lrparams = {'milestones': [200, 280, 295], 'gamma': 0.2}
+lrschedule = 'CosineAnnealingWarmRestarts'
+learningrate = 0.1
+epochs = 310
+lrparams = {'T_0': 10, 'T_mult': 2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
@@ -256,14 +255,14 @@ test_corruptions = np.array([
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
-calculate_adv_distance = True
 
-test_count = 1
 if test_on_c:
-    test_count += 19
-if combine_test_corruptions:
-    test_count += 1
+    if combine_test_corruptions:
+        test_count = 1 + 20
+    else:
+        test_count = test_corruptions.shape[0] + 20
 else:
-    test_count += test_corruptions.shape[0]
-if calculate_adv_distance:
-    test_count += 4
+    if combine_test_corruptions:
+        test_count = 1
+    else:
+        test_count = test_corruptions.shape[0]

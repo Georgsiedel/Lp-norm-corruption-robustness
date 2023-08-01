@@ -110,25 +110,25 @@ dataset = 'CIFAR10' #ImageNet #CIFAR100
 normalize = True
 validontest = True
 lrschedule = 'MultiStepLR'
-learningrate = 0.05
-epochs = 300
-lrparams = {'milestones': [200, 280, 295], 'gamma': 0.2}
+learningrate = 0.03
+epochs = 200
+lrparams = {'milestones': [170, 190], 'gamma': 0.2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
-optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-5}
+optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
 modeltype = 'wrn28'
-modelparams = {'dropout_rate': 0.2}
+modelparams = {}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
-lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
+lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
 mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 1.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-RandomEraseProbability = 0.1
+RandomEraseProbability = 0.0
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
@@ -137,15 +137,6 @@ if combine_train_corruptions:
     model_count = 1
 else:
     model_count = train_corruptions.shape[0]
-
-if dataset == 'CIFAR10':
-    num_classes = 10
-elif dataset == 'CIFAR100':
-    num_classes = 100
-elif dataset == 'ImageNet':
-    num_classes = 1000
-elif dataset == 'TinyImageNet':
-    num_classes = 200
 
 #define train and test corruptions:
 #define noise type (first column): 'gaussian', 'uniform-l0-impulse', 'uniform-l0-salt-pepper', 'uniform-linf'. also: all positive numbers p>0 for uniform Lp possible: 'uniform-l1', 'uniform-l2', ...
@@ -256,14 +247,14 @@ test_corruptions = np.array([
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
-calculate_adv_distance = True
 
-test_count = 1
 if test_on_c:
-    test_count += 19
-if combine_test_corruptions:
-    test_count += 1
+    if combine_test_corruptions:
+        test_count = 1 + 20
+    else:
+        test_count = test_corruptions.shape[0] + 20
 else:
-    test_count += test_corruptions.shape[0]
-if calculate_adv_distance:
-    test_count += 4
+    if combine_test_corruptions:
+        test_count = 1
+    else:
+        test_count = test_corruptions.shape[0]
