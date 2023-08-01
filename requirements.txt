@@ -8,3 +8,5 @@ scikit-learn>=0.24.2
 scikit-image>=0.18.3
 joblib>=1.1.0
 timm
+cleverhans >= 4.0.0
+pillow >=8.4.0
