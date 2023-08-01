@@ -5,4 +5,4 @@ experiments/__pycache__
 experiments/data/*
 !experiments/data/labels.txt
 experiments/checkpoint.pt
-.idea
+.idea/
