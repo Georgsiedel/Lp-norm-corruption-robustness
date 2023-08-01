@@ -1,11 +1,8 @@
 import math
 from typing import Tuple
-
 import torch
 from torch import Tensor
-import torchvision.transforms
 from torchvision.transforms import functional as F
-from torch.utils.data.dataloader import default_collate
 
 class RandomMixup(torch.nn.Module):
     """Randomly apply Mixup to the provided batch and targets.
