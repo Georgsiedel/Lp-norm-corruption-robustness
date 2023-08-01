@@ -125,10 +125,10 @@ resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = True
-lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
+lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
 mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-RandomEraseProbability = 0.0
+RandomEraseProbability = 0.1
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
