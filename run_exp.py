@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [53, 52, 51, 55, 57, 62]:#range(2, experiments_number):
+    for experiment in [52, 51, 55, 57, 62]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
                             config.warmupepochs, config.normalize, config.num_classes)
-                os.system(cmd0)
+                #os.system(cmd0)
 
         # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
         print('Beginning metric evaluation')
