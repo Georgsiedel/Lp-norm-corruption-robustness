@@ -2,10 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
 import random
-import os
-#os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 import copy
 import torch
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -21,11 +18,6 @@ import torchvision.transforms as transforms
 from experiments.network import WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
 import experiments.adversarial_eval as adv_eval
-
-criterion = nn.CrossEntropyLoss()
-# Bounds without normalization of inputs
-x_min = torch.tensor([0, 0, 0]).to(device).view([1, -1, 1, 1])
-x_max = torch.tensor([1, 1, 1]).to(device).view([1, -1, 1, 1])
 
 def compute_metric(loader, net, noise_type, epsilon, max, combine, resize, dataset, normalize):
     net.eval()
@@ -66,7 +58,6 @@ def compute_metric(loader, net, noise_type, epsilon, max, combine, resize, datas
         _, predicted = targets_pert_pred.max(1)
         total += targets_pert.size(0)
         correct += predicted.eq(targets_pert).sum().item()
-
 
     acc = 100.*correct/total
     return(acc)
