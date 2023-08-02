@@ -20,8 +20,7 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from experiments.network import WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
-from cleverhans.torch.attacks.projected_gradient_descent import projected_gradient_descent
-import matplotlib.pyplot as plt
+import experiments.adversarial_eval as adv_eval
 
 criterion = nn.CrossEntropyLoss()
 # Bounds without normalization of inputs
@@ -120,85 +119,8 @@ def compute_metric_cifar_c(loader, loader_c, net, batchsize, resize, normalize, 
     acc = 100. * correct / total
     return (acc)
 
-def pgd_with_early_stopping(model, inputs, labels, clean_predicted, eps, number_iterations, epsilon_iters, norm):
-
-    for i in range(number_iterations):
-        adv_inputs = projected_gradient_descent(model,
-                                                inputs,
-                                                eps=eps,
-                                                eps_iter=epsilon_iters,
-                                                nb_iter=1,
-                                                norm=norm,
-                                                y = labels,
-                                                rand_init=False,
-                                                sanity_checks=False)
-
-        adv_outputs = model(adv_inputs)
-        _, adv_predicted = torch.max(adv_outputs.data, 1)
-
-        label_flipped = bool(adv_predicted!=clean_predicted)
-        if label_flipped:
-            if clean_predicted!=labels:
-                print(f"Iterations for successful attack on misclassified input: {i+1}")
-                break
-            else:
-              print(f"Iterations for successful attack: {i+1}")
-              break
-        inputs = adv_inputs.clone()
-    return adv_inputs, adv_predicted
-
-def adv_distance(testloader, model, number_iterations, epsilon, eps_iter, norm):
-    distance_list_0, image_idx_0 = [], []
-    distance_list_1, image_idx_1 = [], []
-    distance_list_2, image_idx_2 = [], []
-
-    correct, total = 0, 0
-    for i, (inputs, labels) in enumerate(testloader):
-        inputs, labels = inputs.to(device), labels.to(device)
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-
-        adv_inputs, adv_predicted = pgd_with_early_stopping(model, inputs, labels, predicted, epsilon, number_iterations, eps_iter, norm)
-
-        distance = torch.norm((inputs - adv_inputs), p=norm)
-        distance_list_0.append(distance) #all distances, also for originally misclassified points
-        image_idx_0.append(i) #all points, also originally misclassified ones
-
-        if (predicted == labels):
-            distance = torch.norm((inputs - adv_inputs), p=norm)
-            distance_list_1.append(distance)
-            image_idx_1.append(i)
-            distance_list_2.append(distance) #only originally correctly classified distances are counted
-            image_idx_2.append(i) #only originally correctly classified points
-        else:
-            distance_list_1.append(0) #originally misclassified distances are counted as 0
-            image_idx_1.append(i) #all points, also originally misclassified ones
-
-        correct += (adv_predicted == labels).sum().item()
-        total += labels.size(0)
-
-        if i % 100 == 0:
-            adv_acc = correct / total
-            print(f"Completed: {i}, mean_distance: {sum(distance_list_0)/i}, Adversarial accuracy: {adv_acc * 100}%")
-
-    return distance_list_0, image_idx_0, distance_list_1, image_idx_1, distance_list_2, image_idx_2, adv_acc
-
-def compute_adv_distance(testset, workers, model):
-    truncated_testset, _ = torch.utils.data.random_split(testset,
-                                                         [1000, 9000],
-                                                         generator=torch.Generator().manual_seed(42))
-    truncated_testloader = DataLoader(truncated_testset, batch_size=1, shuffle=False,
-                                       pin_memory=True, num_workers=workers)
-    epsilon=0.1
-    eps_iter=0.0004,
-    nb_iters=100
-    norm=np.inf
-
-    dst0, idx0, dst1, idx1, dst2, idx2, adv_acc = adv_distance(truncated_testloader, model, nb_iters, epsilon, eps_iter, norm)
-
-    return adv_acc*100, dst0, idx0, dst1, idx1, dst2, idx2
-
-def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelparams, resize, dataset, bsize, workers, normalize, calculate_adv_distance):
+def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelparams, resize,
+                dataset, bsize, workers, normalize, calculate_adv_distance, adv_distance_params, calculate_autoattack_robustness, autoattack_params):
     if dataset == 'ImageNet':
         test_transforms = transforms.Compose([transforms.Resize(256),
                                               transforms.CenterCrop(224),
@@ -235,14 +157,14 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     model.load_state_dict(torch.load(modelfilename)["net"])
 
     accs = []
+    acc = compute_metric(test_loader, model, 'standard', 0.0, True, False, resize, dataset, normalize)
+    accs.append(acc)
+    print(acc, "% Clean Accuracy")
 
     if test_on_c == True:
         corruptions = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
         np.asarray(corruptions)
         corruptions = np.delete(corruptions, 0) #delete the 'standard' out of the list, this is only for labeling.
-        acc = compute_metric(test_loader, model, 'standard', 0.0, True, False, resize, dataset, normalize)
-        accs.append(acc)
-        print(acc, "% Clean Accuracy")
         print(f"Testing on {dataset}-c Benchmark Noise (Hendrycks 2019)")
         if dataset == 'CIFAR10' or dataset == 'CIFAR100':
             for corruption in corruptions:
@@ -274,21 +196,21 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
             print('No corrupted benchmark available other than CIFAR10-c, CIFAR100-c, TinyImageNet-c and ImageNet-c.')
 
     if combine_test_corruptions:
-        print("Test Noise combined")
         acc = compute_metric(test_loader, model, test_corruptions, test_corruptions, test_corruptions,
                              combine_test_corruptions, resize, dataset, normalize)
+        print(acc, "% Accuracy on combined Lp-norm Test Noise")
         accs.append(acc)
     else:
         for id, (noise_type, test_epsilon, max) in enumerate(test_corruptions):
             acc = compute_metric(test_loader, model, noise_type, test_epsilon, max, combine_test_corruptions, resize, dataset, normalize)
             print(acc, "% Accuracy on random test corupptions of type:", noise_type, test_epsilon, "with maximal-perturbation =", max)
             accs.append(acc)
-
     if calculate_adv_distance == True:
-        adv_acc_high_iter_pgd, dst0, idx0, dst1, idx1, dst2, idx2 = compute_adv_distance(testset, workers, model)
+        adv_acc_high_iter_pgd, dst0, idx0, dst1, idx1, dst2, idx2 = adv_eval.compute_adv_distance(testset, workers, model, adv_distance_params)
         accs.append(adv_acc_high_iter_pgd)
-        distances = [torch.tensor(d).cpu().np() for d in [dst0, dst1, dst2]]
-        mean_dist0, mean_dist1, mean_dist2 = [dist.mean() for dist in distances]
-        accs.append([mean_dist0, mean_dist1, mean_dist2])
-
+        mean_dist0, mean_dist1, mean_dist2 = [np.asarray(torch.tensor(d).cpu()).mean() for d in [dst0, dst1, dst2]]
+        accs = accs + [mean_dist0, mean_dist1, mean_dist2]
+    if calculate_autoattack_robustness == True:
+        adv_acc_aa, mean_dist_aa = adv_eval.compute_adv_acc(autoattack_params, testset, model, workers)
+        accs = accs + [adv_acc_aa, mean_dist_aa]
     return accs

@@ -4,9 +4,9 @@ This is the code associated with the paper
 
 run_exp.py is the test execution that calls train.py and eval.py modules from the experiments folder.
 
-run_exp.py uses various parameters for every experiment that are defined in a config file, stores at experiments/configs (example config0 file is given and can be adjusted).
+run_exp.py uses various parameters for every experiment that are defined in a config file, stores at experiments/configs (example config0 file is given and can be adjusted). Multiple config files with various numbers can be executed sequentially, they are called using the first loop in run_exp.py.
 
-multiple config files with various numbers can be executed sequentially, they are called using the first loop in run_exp.py.
+A sub-folder structure for the models is needed in experiments/models. Please notice the Readme in said folder.
 
 The model "wrn28" used in the paper is the model defined in experiments/network.py. Any other modelname is called from torchvision.models.
 

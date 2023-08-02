@@ -120,3 +120,7 @@ uniform-l0-impulse,0.09,False;0,000
 uniform-l0-impulse,0.11,False;0,000
 uniform-l0-impulse,0.13,False;0,000
 uniform-l0-impulse,0.15,False;0,000
+Acc. from PGD Adv. distance calculation;0,000
+Adv. Distance (misclassified images included);0,000
+Adv. Distance (misclassified images 0);0,000
+Adv. Distance (misclassified images not included);0,000

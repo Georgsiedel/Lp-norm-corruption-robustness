@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [52, 51, 55, 57, 62]:#range(2, experiments_number):
+    for experiment in [51, 55, 57, 62]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
                             config.warmupepochs, config.normalize, config.num_classes)
-                #os.system(cmd0)
+                os.system(cmd0)
 
         # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
         print('Beginning metric evaluation')
@@ -83,7 +83,8 @@ if __name__ == '__main__':
                 filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/{config.modeltype}_config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
                 test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                               config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
-                                              config.number_workers, config.normalize, config.calculate_adv_distance)
+                                              config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
+                                              config.calculate_autoattack_robustness, config.autoattack_params)
                 test_metrics[:, 0] = np.array(test_metric_col)
                 print(test_metric_col)
             else:
@@ -92,7 +93,8 @@ if __name__ == '__main__':
                     filename = f'./experiments/models/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/{config.modeltype}_{noise_type}_epsilon_{train_epsilon}_{max}_run_{run}.pth'
                     test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                                   config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
-                                                  config.number_workers, config.normalize, config.calculate_adv_distance)
+                                                  config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
+                                                  config.calculate_autoattack_robustness, config.autoattack_params)
                     test_metrics[:, idx] = np.array(test_metric_col)
                     print(test_metric_col)
 
@@ -105,7 +107,8 @@ if __name__ == '__main__':
                 std_test_metrics[ide, idm] = all_test_metrics[ide, idm, :].std()
                 max_test_metrics[ide, idm] = all_test_metrics[ide, idm, :].max()
 
-        test_corruptions_string = np.empty([config.test_count])
+        test_corruptions_string = np.array(['standard'])
+
         if config.combine_train_corruptions == True:
             train_corruptions_string = ['config']
         else:
@@ -114,7 +117,6 @@ if __name__ == '__main__':
 
         if config.test_on_c == True:
             test_corruptions_string = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
-
         if config.combine_test_corruptions == True:
             test_corruptions_label = ['config']
             test_corruptions_string = np.append(test_corruptions_string, test_corruptions_label)
@@ -122,10 +124,12 @@ if __name__ == '__main__':
             test_corruptions_labels = config.test_corruptions.astype(str)
             test_corruptions_labels = np.array([','.join(row) for row in test_corruptions_labels])
             test_corruptions_string = np.append(test_corruptions_string, test_corruptions_labels)
+
         if config.calculate_adv_distance == True:
-            test_corruptions_string = np.append(test_corruptions_string,
-                        ['Acc. from PGD Adv. distance calculation', 'Adv. Distance (misclassified images included)',
-                         'Adv. Distance (misclassified images 0)', 'Adv. Distance (misclassified images not included)'])
+            test_corruptions_string = np.append(test_corruptions_string, ['Acc_from_PGD_adv_distance_calculation', 'Mean_adv_distance_misclassified_images_included)',
+                         'Mean_adv_distance_misclassified_images_0)', 'Mean_adv_distance_misclassified-images_not_included)'], axis=0)
+        if config.calculate_autoattack_robustness == True:
+            test_corruptions_string = np.append(test_corruptions_string, ['Adversarial_accuracy_autoattack', 'Mean_adv_distance_from autoattack)'], axis=0)
 
         avg_report_frame = pd.DataFrame(avg_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
         max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
