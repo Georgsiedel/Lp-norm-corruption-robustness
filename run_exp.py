@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-# os.chdir('C:\\Users\\Admin\\Desktop\\Python\\corruption-testing')
 
 if __name__ == '__main__':
     import os
@@ -17,7 +16,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [51, 55, 57, 62]:#range(2, experiments_number):
+    for experiment in [55, 57, 62]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -64,7 +63,7 @@ if __name__ == '__main__':
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
                             config.warmupepochs, config.normalize, config.num_classes)
-                os.system(cmd0)
+                #os.system(cmd0)
 
         # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
         print('Beginning metric evaluation')
@@ -107,10 +106,10 @@ if __name__ == '__main__':
                 std_test_metrics[ide, idm] = all_test_metrics[ide, idm, :].std()
                 max_test_metrics[ide, idm] = all_test_metrics[ide, idm, :].max()
 
-        test_corruptions_string = np.array(['standard'])
+        test_corruptions_string = np.array(['Standard Acc', 'RMSCE'])
 
         if config.combine_train_corruptions == True:
-            train_corruptions_string = ['config']
+            train_corruptions_string = ['config model']
         else:
             train_corruptions_string = config.train_corruptions.astype(str)
             train_corruptions_string = np.array([','.join(row) for row in train_corruptions_string])
@@ -118,7 +117,7 @@ if __name__ == '__main__':
         if config.test_on_c == True:
             test_corruptions_string = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
         if config.combine_test_corruptions == True:
-            test_corruptions_label = ['config']
+            test_corruptions_label = ['Acc config']
             test_corruptions_string = np.append(test_corruptions_string, test_corruptions_label)
         else:
             test_corruptions_labels = config.test_corruptions.astype(str)
@@ -136,26 +135,17 @@ if __name__ == '__main__':
         std_report_frame = pd.DataFrame(std_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
 
         if config.combine_train_corruptions == True:
-            avg_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/'
-                                    f'{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True,
-                                    sep=';', float_format='%1.3f', decimal=',')
-            max_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/'
-                                    f'{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True,
-                                    sep=';', float_format='%1.3f', decimal=',')
-            std_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/'
-                                    f'{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True,
-                                    sep=';', float_format='%1.3f', decimal=',')
-            shutil.copyfile(f'./experiments/configs/config{experiment}.py',
-                            f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/config{experiment}.py')
+            training_folder = 'combined_training'
         else:
-            avg_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/'
-                                    f'{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True,
-                                    sep=';', float_format='%1.3f', decimal=',')
-            max_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/'
-                                    f'{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True,
-                                    sep=';', float_format='%1.3f', decimal=',')
-            std_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/'
-                                    f'{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True,
-                                    sep=';', float_format='%1.3f', decimal=',')
-            shutil.copyfile(f'./experiments/configs/config{experiment}.py',
-                            f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/config{experiment}.py')
+            training_folder = 'separate_training'
+        avg_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/{training_folder}/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_avg.csv', index=True, header=True,
+                                sep=';', float_format='%1.4f', decimal=',')
+        max_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/{training_folder}/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_max.csv', index=True, header=True,
+                                sep=';', float_format='%1.4f', decimal=',')
+        std_report_frame.to_csv(f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/{training_folder}/'
+                                f'{config.modeltype}_config{experiment}_metrics_test_std.csv', index=True, header=True,
+                                sep=';', float_format='%1.4f', decimal=',')
+        shutil.copyfile(f'./experiments/configs/config{experiment}.py',
+                        f'./results/{config.dataset}/{config.modeltype}/{config.lrschedule}/{training_folder}/config{experiment}.py')

@@ -1,5 +1,4 @@
 import numpy as np
-import torchvision.models.mobilenet
 
 train_corruptions = np.array([
 #['standard', 0.0, False],
@@ -126,7 +125,7 @@ aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
-mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+mixup_alpha = 0.1 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 1.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.1
 
@@ -257,9 +256,11 @@ test_corruptions = np.array([
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions
 calculate_adv_distance = True
-adv_distance_params = {'setsize': 1000, 'nb_iters': 100, 'eps_iter': 0.0005, 'norm': np.inf, "optimization_iters": 1}
+adv_distance_params = {'setsize': 1000, 'nb_iters': 100, 'eps_iter': 0.0005, 'norm': np.inf, "epsilon": 0.1}
+calculate_autoattack_robustness = False
+autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
-test_count = 1
+test_count = 2
 if test_on_c:
     test_count += 19
 if combine_test_corruptions:
