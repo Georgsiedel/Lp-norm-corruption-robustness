@@ -14,7 +14,7 @@ from torchvision import datasets, transforms
 import torchvision.models as models
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from experiments.network import WideResNet
+from experiments.network import WideResNet, Normalized_WideResNet
 from experiments.sample_corrupted_img import sample_lp_corr
 import experiments.adversarial_eval as adv_eval
 from torchmetrics.classification import MulticlassCalibrationError
@@ -44,12 +44,12 @@ def compute_metric(loader, net, noise_type, epsilon, max, combine, resize, datas
         if resize == True:
             inputs_pert = transforms.Resize(224)(inputs_pert)
 
-        if dataset == 'CIFAR10' and normalize == True:
-            inputs_pert = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs_pert)
-        elif dataset == 'CIFAR100' and normalize == True:
-            inputs_pert = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs_pert)
-        elif (dataset == 'ImageNet' or dataset == 'TinyImageNet') and normalize == True:
-            inputs_pert = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs_pert)
+        #if dataset == 'CIFAR10' and normalize == True:
+        #    inputs_pert = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs_pert)
+        #elif dataset == 'CIFAR100' and normalize == True:
+        #    inputs_pert = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs_pert)
+        #elif (dataset == 'ImageNet' or dataset == 'TinyImageNet') and normalize == True:
+        #    inputs_pert = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs_pert)
 
         inputs_pert, targets = inputs_pert.to(device, dtype=torch.float), targets.to(device)
         targets_pert = targets
@@ -74,12 +74,12 @@ def compute_clean(loader, net, resize, dataset, normalize, num_classes):
         for batch_idx, (inputs, targets) in enumerate(loader):
             if resize == True:
                 inputs = transforms.Resize(224)(inputs)
-            if dataset == 'CIFAR10' and normalize == True:
-                inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
-            elif dataset == 'CIFAR100' and normalize == True:
-                inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
-            elif (dataset == 'ImageNet' or dataset == 'TinyImageNet') and normalize == True:
-                inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+            #if dataset == 'CIFAR10' and normalize == True:
+            #    inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
+            #elif dataset == 'CIFAR100' and normalize == True:
+            #    inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
+            #elif (dataset == 'ImageNet' or dataset == 'TinyImageNet') and normalize == True:
+            #    inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
 
             inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
             targets_pred = net(inputs)
@@ -98,12 +98,14 @@ def compute_clean(loader, net, resize, dataset, normalize, num_classes):
         rmsce = np.sqrt(sum(rmsce_batches * n_images) / sum(n_images)) #weighted sum and average over batches and sqrt-operation we undid above
         return acc, rmsce
 
-def compute_metric_imagenet_c(loader_c, net):
+def compute_metric_imagenet_c(loader_c, net, normalize):
     net.eval()
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(loader_c):
-
+        inputs = inputs / 255
+        if normalize == True:
+            inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
         inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
         targets_pred = net(inputs)
 
@@ -159,6 +161,7 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         test_loader = DataLoader(testset, batch_size=batchsize, shuffle =False,
                                  pin_memory=True, num_workers=workers)
     num_classes = len(testset.classes)
+
     #Load model
     if modeltype == 'wrn28':
         model = WideResNet(depth = 28, widen_factor = 10, dropout_rate=modelparams['dropout_rate'], num_classes=num_classes)
@@ -166,11 +169,17 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         torchmodel = getattr(models, modeltype)
         model = torchmodel(num_classes = num_classes, **modelparams)
     model = model.to(device)
-
     if device == "cuda":
         model = torch.nn.DataParallel(model).cuda()
         cudnn.benchmark = True
     model.load_state_dict(torch.load(modelfilename)["net"])
+    if normalize == True:
+        model = Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'],
+                                      num_classes=num_classes)
+        model = model.to(device)
+        if device == "cuda":
+            model = torch.nn.DataParallel(model).cuda()
+        model.load_state_dict(torch.load(modelfilename)["net"], strict=False)
 
     accs = []
     acc, rmsce = compute_clean(test_loader, model, resize, dataset, normalize, num_classes)
@@ -180,7 +189,6 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     if test_on_c == True:
         corruptions = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
         np.asarray(corruptions)
-        corruptions = np.delete(corruptions, 0) #delete the 'standard' out of the list, this is only for labeling.
         print(f"Testing on {dataset}-c Benchmark Noise (Hendrycks 2019)")
         if dataset == 'CIFAR10' or dataset == 'CIFAR100':
             for corruption in corruptions:
@@ -206,11 +214,8 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
                 for intensity in range(1, 6):
                     load_c = datasets.ImageFolder(root=f'./experiments/data/{dataset}-c/'+corruption+'/'+str(intensity),
                                     transform=transforms.Compose([transforms.CenterCrop(224), transforms.ToTensor()]))
-                    load_c = load_c / 255
-                    if normalize == True:
-                        load_c = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(load_c)
                     test_loader_c = DataLoader(load_c, batch_size=batchsize, shuffle=False)
-                    acc = compute_metric_imagenet_c(test_loader_c, model)
+                    acc = compute_metric_imagenet_c(test_loader_c, model, normalize)
                     acc_intensities.append(acc)
                 acc = sum(acc_intensities) / 5
                 accs.append(acc)
@@ -232,14 +237,18 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     if calculate_adv_distance == True:
         print(f"{adv_distance_params['norm']}-Adversarial Distance calculation using PGD attack with {adv_distance_params['nb_iters']} iterations of "
               f"stepsize {adv_distance_params['eps_iter']}")
+        model = Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'], num_classes=num_classes)
+        model = model.to(device)
+        if device == "cuda":
+            model = torch.nn.DataParallel(model).cuda()
+        model.load_state_dict(torch.load(modelfilename)["net"], strict=False)
         adv_acc_high_iter_pgd, dst0, idx0, dst1, idx1, dst2, idx2 = adv_eval.compute_adv_distance(testset, workers, model, adv_distance_params)
         accs.append(adv_acc_high_iter_pgd)
         mean_dist0, mean_dist1, mean_dist2 = [np.asarray(torch.tensor(d).cpu()).mean() for d in [dst0, dst1, dst2]]
         accs = accs + [mean_dist0, mean_dist1, mean_dist2]
     if calculate_autoattack_robustness == True:
         print(f"{autoattack_params['norm']} Adversarial Accuracy calculation using AutoAttack attack with epsilon={autoattack_params['epsilon']}")
-        load_helper = getattr(datasets, dataset)
-        testset = load_helper("./experiments/data", train=False, download=True, transform=transforms.Compose([test_transforms, transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))]))
+
         adv_acc_aa, mean_dist_aa = adv_eval.compute_adv_acc(autoattack_params, testset, model, workers, batchsize)
         accs = accs + [adv_acc_aa, mean_dist_aa]
     return accs

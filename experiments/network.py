@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
@@ -80,3 +81,21 @@ class WideResNet(nn.Module):
         out = self.linear(out)
 
         return out
+
+class Normalized_WideResNet(WideResNet):
+
+    def __init__(self, depth=28, widen_factor=10, dropout_rate=0.3, num_classes=10):
+        super(Normalized_WideResNet, self).__init__(depth=depth,
+                                                     widen_factor=widen_factor,
+                                                    dropout_rate=dropout_rate,
+                                                    num_classes=num_classes)
+        self.register_buffer(
+            'mu',
+            torch.tensor([0.4914, 0.4822, 0.4465]).view(1, 3, 1, 1))
+        self.register_buffer(
+            'sigma',
+            torch.tensor([0.247, 0.243, 0.261]).view(1, 3, 1, 1))
+
+    def forward(self, x):
+        x = (x - self.mu) / self.sigma
+        return super(Normalized_WideResNet, self).forward(x)

@@ -60,7 +60,7 @@ def adv_distance(testloader, model, number_iterations, epsilon, eps_iter, norm, 
         correct += (adv_predicted == labels).sum().item()
         total += labels.size(0)
 
-        if (i+1) % 10 == 0:
+        if (i+1) % 50 == 0:
             adv_acc = correct / total
             print(f"Completed: {i+1} of {setsize}, mean_distance: {sum(distance_list_0)/i}, correct: {correct}, total: {total}, accuracy: {adv_acc * 100}%")
 
@@ -83,7 +83,7 @@ def compute_adv_distance(testset, workers, model, adv_distance_params):
 
 def compute_adv_acc(autoattack_params, testset, model, workers, batchsize):
     truncated_testset, _ = torch.utils.data.random_split(testset, [autoattack_params["setsize"],
-                                len(testset)-autoattack_params["setsize"]], generator=torch.Generator().manual_seed(1))
+                                len(testset)-autoattack_params["setsize"]], generator=torch.Generator().manual_seed(10))
     truncated_testloader = DataLoader(truncated_testset, batch_size=autoattack_params["setsize"], shuffle=False,
                                        pin_memory=True, num_workers=workers)
     adversary = AutoAttack(model, norm=autoattack_params['norm'], eps=autoattack_params['epsilon'], version='standard')
@@ -91,11 +91,14 @@ def compute_adv_acc(autoattack_params, testset, model, workers, batchsize):
     distance_list = []
     if autoattack_params["norm"] == 'Linf':
         autoattack_params["norm"] = np.inf
+    else:
+        autoattack_params["norm"] = autoattack_params["norm"][1:]
     for batch_id, (inputs, targets) in enumerate(truncated_testloader):
         adv_inputs, adv_predicted = adversary.run_standard_evaluation(inputs, targets, bs=50, return_labels=True)
 
         for i, (input) in enumerate(inputs):
-            distance = torch.linalg.matrix_norm((input - adv_inputs[i]), ord=autoattack_params["norm"])
+
+            distance = torch.linalg.vector_norm((input - adv_inputs[i]), ord=autoattack_params["norm"])
             distance_list.append(distance)
 
     mean_aa_dist = np.asarray(torch.tensor(distance_list).cpu()).mean()
