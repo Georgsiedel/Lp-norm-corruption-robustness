@@ -5,6 +5,7 @@ from __future__ import print_function
 import random
 import copy
 import torch
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 import gc
 import numpy as np
@@ -104,8 +105,8 @@ def compute_metric_imagenet_c(loader_c, net, normalize):
     total = 0
     for batch_idx, (inputs, targets) in enumerate(loader_c):
         inputs = inputs / 255
-        if normalize == True:
-            inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+        #if normalize == True:
+        #    inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
         inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
         targets_pred = net(inputs)
 
@@ -196,13 +197,13 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
                 test_loader_c = torch.from_numpy(test_loader_c)
                 test_loader_c = test_loader_c.permute(0, 3, 1, 2)
                 test_loader_c = test_loader_c / 255.0
-                if resize == True:
-                    test_loader_c = transforms.Resize(224)(test_loader_c)
-                if normalize == True and dataset == 'CIFAR10':
-                    test_loader_c = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(test_loader_c)
-                if normalize == True and dataset == 'CIFAR100':
-                    test_loader_c = transforms.Normalize((0.50707516, 0.48654887, 0.44091784),
-                                                    (0.26733429, 0.25643846, 0.27615047))(test_loader_c)
+                #if resize == True:
+                #    test_loader_c = transforms.Resize(224)(test_loader_c)
+                #if normalize == True and dataset == 'CIFAR10':
+                #    test_loader_c = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(test_loader_c)
+                #if normalize == True and dataset == 'CIFAR100':
+                #    test_loader_c = transforms.Normalize((0.50707516, 0.48654887, 0.44091784),
+                #                                    (0.26733429, 0.25643846, 0.27615047))(test_loader_c)
                 acc = compute_metric_cifar_c(test_loader, test_loader_c, model, batchsize)
                 accs.append(acc)
                 print(acc, f"% mean (avg. over 5 intensities) Accuracy on {dataset}-c corrupted data of type", corruption)
@@ -237,15 +238,10 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     if calculate_adv_distance == True:
         print(f"{adv_distance_params['norm']}-Adversarial Distance calculation using PGD attack with {adv_distance_params['nb_iters']} iterations of "
               f"stepsize {adv_distance_params['eps_iter']}")
-        model = Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'], num_classes=num_classes)
-        model = model.to(device)
-        if device == "cuda":
-            model = torch.nn.DataParallel(model).cuda()
-        model.load_state_dict(torch.load(modelfilename)["net"], strict=False)
-        adv_acc_high_iter_pgd, dst0, idx0, dst1, idx1, dst2, idx2 = adv_eval.compute_adv_distance(testset, workers, model, adv_distance_params)
+        adv_acc_high_iter_pgd, dst1, idx1, dst2, idx2 = adv_eval.compute_adv_distance(testset, workers, model, adv_distance_params)
         accs.append(adv_acc_high_iter_pgd)
-        mean_dist0, mean_dist1, mean_dist2 = [np.asarray(torch.tensor(d).cpu()).mean() for d in [dst0, dst1, dst2]]
-        accs = accs + [mean_dist0, mean_dist1, mean_dist2]
+        mean_dist1, mean_dist2 = [np.asarray(torch.tensor(d).cpu()).mean() for d in [dst1, dst2]]
+        accs = accs + [mean_dist1, mean_dist2]
     if calculate_autoattack_robustness == True:
         print(f"{autoattack_params['norm']} Adversarial Accuracy calculation using AutoAttack attack with epsilon={autoattack_params['epsilon']}")
 

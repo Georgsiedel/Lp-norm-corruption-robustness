@@ -255,10 +255,10 @@ test_corruptions = np.array([
 ])
 test_on_c = False
 combine_test_corruptions = True #augment the test dataset with all corruptions
-calculate_adv_distance = True
-adv_distance_params = {'setsize': 1000, 'nb_iters': 100, 'eps_iter': 0.0005, 'norm': np.inf, "epsilon": 0.1}
+calculate_adv_distance = False
+adv_distance_params = {'setsize': 1000, 'nb_iters': 120, 'eps_iter': 0.0005, 'norm': np.inf, "epsilon": 0.1}
 calculate_autoattack_robustness = True
-autoattack_params = {'setsize': 1000, 'epsilon': 0.031, 'norm': 'Linf'}
+autoattack_params = {'setsize': 10000, 'epsilon': 8/255, 'norm': 'Linf'}
 
 test_count = 2
 if test_on_c:
@@ -268,6 +268,6 @@ if combine_test_corruptions:
 else:
     test_count += test_corruptions.shape[0]
 if calculate_adv_distance:
-    test_count += 4
+    test_count += 3
 if calculate_autoattack_robustness:
     test_count += 2

@@ -111,7 +111,7 @@ normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
 learningrate = 0.1
-epochs = 372
+epochs = 310
 lrparams = {'T_0': 12, 'T_mult': 2}
 warmupepochs = 0
 earlystop = False
@@ -120,14 +120,14 @@ optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
 number_workers = 1
 modeltype = 'wrn28'
-modelparams = {'dropout_rate': 0.1}
+modelparams = {'dropout_rate': 0.2}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
 mixup_alpha = 0.1 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+cutmix_alpha = 0.3 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.1
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
@@ -254,11 +254,11 @@ test_corruptions = np.array([
 ['uniform-l0-impulse', 0.13, False],
 ['uniform-l0-impulse', 0.15, False]
 ])
-test_on_c = False
-combine_test_corruptions = True #augment the test dataset with all corruptions
+test_on_c = True
+combine_test_corruptions = False #augment the test dataset with all corruptions
 calculate_adv_distance = True
-adv_distance_params = {'setsize': 1000, 'nb_iters': 120, 'eps_iter': 0.0005, 'norm': np.inf, "epsilon": 0.1}
-calculate_autoattack_robustness = True
+adv_distance_params = {'setsize': 1000, 'nb_iters': 100, 'eps_iter': 0.0005, 'norm': np.inf, "epsilon": 0.1}
+calculate_autoattack_robustness = False
 autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
 test_count = 2

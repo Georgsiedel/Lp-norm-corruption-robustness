@@ -31,7 +31,6 @@ def pgd_with_early_stopping(model, inputs, labels, clean_predicted, eps, number_
     return adv_inputs, adv_predicted
 
 def adv_distance(testloader, model, number_iterations, epsilon, eps_iter, norm, setsize):
-    distance_list_0, image_idx_0 = [], []
     distance_list_1, image_idx_1 = [], []
     distance_list_2, image_idx_2 = [], []
 
@@ -44,11 +43,7 @@ def adv_distance(testloader, model, number_iterations, epsilon, eps_iter, norm, 
         adv_inputs, adv_predicted = pgd_with_early_stopping(model, inputs, labels, predicted, epsilon, number_iterations, eps_iter, norm)
 
         distance = torch.norm((inputs - adv_inputs), p=norm)
-        distance_list_0.append(distance) #all distances, also for originally misclassified points
-        image_idx_0.append(i) #all points, also originally misclassified ones
-
         if (predicted == labels):
-            distance = torch.norm((inputs - adv_inputs), p=norm)
             distance_list_1.append(distance)
             image_idx_1.append(i)
             distance_list_2.append(distance) #only originally correctly classified distances are counted
@@ -59,12 +54,11 @@ def adv_distance(testloader, model, number_iterations, epsilon, eps_iter, norm, 
 
         correct += (adv_predicted == labels).sum().item()
         total += labels.size(0)
-
         if (i+1) % 50 == 0:
             adv_acc = correct / total
-            print(f"Completed: {i+1} of {setsize}, mean_distance: {sum(distance_list_0)/i}, correct: {correct}, total: {total}, accuracy: {adv_acc * 100}%")
+            print(f"Completed: {i+1} of {setsize}, mean_distances: {sum(distance_list_1)/len(distance_list_1)}, {sum(distance_list_2)/len(distance_list_2)}, correct: {correct}, total: {total}, accuracy: {adv_acc * 100}%")
 
-    return distance_list_0, image_idx_0, distance_list_1, image_idx_1, distance_list_2, image_idx_2, adv_acc
+    return distance_list_1, image_idx_1, distance_list_2, image_idx_2, adv_acc
 
 def compute_adv_distance(testset, workers, model, adv_distance_params):
     truncated_testset, _ = torch.utils.data.random_split(testset,
@@ -76,14 +70,14 @@ def compute_adv_distance(testset, workers, model, adv_distance_params):
     eps_iter = adv_distance_params["eps_iter"]
     nb_iters = adv_distance_params["nb_iters"]
     norm = adv_distance_params["norm"]
-    dst0, idx0, dst1, idx1, dst2, idx2, adv_acc = adv_distance(testloader=truncated_testloader, model=model,
+    dst1, idx1, dst2, idx2, adv_acc = adv_distance(testloader=truncated_testloader, model=model,
         number_iterations=nb_iters, epsilon=epsilon, eps_iter=eps_iter, norm=norm, setsize=adv_distance_params["setsize"])
 
-    return adv_acc*100, dst0, idx0, dst1, idx1, dst2, idx2
+    return adv_acc*100, dst1, idx1, dst2, idx2
 
 def compute_adv_acc(autoattack_params, testset, model, workers, batchsize):
     truncated_testset, _ = torch.utils.data.random_split(testset, [autoattack_params["setsize"],
-                                len(testset)-autoattack_params["setsize"]], generator=torch.Generator().manual_seed(10))
+                                len(testset)-autoattack_params["setsize"]], generator=torch.Generator().manual_seed(42))
     truncated_testloader = DataLoader(truncated_testset, batch_size=autoattack_params["setsize"], shuffle=False,
                                        pin_memory=True, num_workers=workers)
     adversary = AutoAttack(model, norm=autoattack_params['norm'], eps=autoattack_params['epsilon'], version='standard')

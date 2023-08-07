@@ -7,10 +7,9 @@ import ast
 import random
 import importlib
 import copy
-import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-
+import shutil
 import torch
 import torch.nn as nn
 import torch.cuda.amp
@@ -26,6 +25,7 @@ from experiments.network import WideResNet
 from experiments.jsd_loss import JsdCrossEntropy
 from experiments.sample_corrupted_img import sample_lp_corr
 from experiments.earlystopping import EarlyStopping
+from experiments.visuals_and_reports import learning_curves
 import experiments.mix_transforms as mix_transforms
 
 import torch.backends.cudnn as cudnn
@@ -181,7 +181,7 @@ def apply_lp_corruption(img):
 def train(pbar):
     """ Perform epoch of training"""
     net.train()
-    correct, total, train_loss = 0, 0, 0
+    correct, total, train_loss, avg_train_loss = 0, 0, 0, 0
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         optimizer.zero_grad()
@@ -233,19 +233,19 @@ def train(pbar):
             targets = torch.cat((targets, targets, targets), 0)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
-
-        pbar.set_description('[Train] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(train_loss / (batch_idx + 1),
+        avg_train_loss = train_loss / (batch_idx + 1)
+        pbar.set_description('[Train] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(avg_train_loss,
                                                                                  100. * correct / total,
                                                                                  correct, total))
         pbar.update(1)
 
     train_acc = 100. * correct / total
-    return train_acc
+    return train_acc, avg_train_loss
 
 def valid(pbar):
     """ Test current network on validation set"""
     net.eval()
-    test_loss, correct, total = 0, 0, 0
+    test_loss, correct, total, avg_test_loss = 0, 0, 0, 0
 
     for batch_idx, (inputs, targets) in enumerate(validationloader):
 
@@ -268,14 +268,14 @@ def valid(pbar):
         _, predicted = targets_pert_pred.max(1)
         total += targets_pert.size(0)
         correct += predicted.eq(targets_pert).sum().item()
-
+        avg_test_loss = test_loss / (batch_idx + 1)
         pbar.set_description(
-            '[Valid] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(test_loss / (batch_idx + 1), 100. * correct / total,
+            '[Valid] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(avg_test_loss, 100. * correct / total,
                                                                 correct, total))
         pbar.update(1)
 
     acc = 100. * correct / total
-    return acc, test_loss
+    return acc, avg_test_loss
 
 def create_transforms(dataset):
     # list of all data transformations used
@@ -287,9 +287,6 @@ def create_transforms(dataset):
     c224 = transforms.CenterCrop(224)
     rrc224 = transforms.RandomResizedCrop(224)
     re = transforms.RandomErasing(p=args.RandomEraseProbability)
-    nc10 = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))
-    nc100 = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))
-    nIN = transforms.Normalize((0.485, 0.456, 0.406),(0.229, 0.224, 0.225))
 
     # transformations of validation set
     transforms_valid = transforms.Compose([t])
@@ -384,8 +381,8 @@ if __name__ == '__main__':
     scaler = torch.cuda.amp.GradScaler()
 
     early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/models/checkpoint.pt')
-    train_accs = []
-    valid_accs = []
+
+    train_accs, train_losses, valid_accs, valid_losses = [], [], [], []
     # Training loop
     print('\nTraining model..')
     if args.aug_strat_check == True:
@@ -399,10 +396,12 @@ if __name__ == '__main__':
         with torch.autograd.set_detect_anomaly(False, check_nan=False): #this may resolve some Cuda/cuDNN errors.
             # check_nan=True increases 32bit precision train time by ~20% and causes errors due to nan values for mixep precision training.
             for epoch in range(start_epoch, start_epoch + args.epochs):
-                train_acc = train(pbar)
+                train_acc, train_loss = train(pbar)
                 valid_acc, valid_loss = valid(pbar)
                 train_accs.append(train_acc)
                 valid_accs.append(valid_acc)
+                train_losses.append(train_loss)
+                valid_losses.append(valid_loss)
                 if args.lrschedule == 'ReduceLROnPlateau':
                     scheduler.step(valid_loss)
                 else:
@@ -421,64 +420,22 @@ if __name__ == '__main__':
             # 'train_acc': train_accs[np.argmax(valid_accs)],
             # 'epoch': start_epoch-1+np.argmax(valid_accs)+1,
         }
+        training_folder = 'combined_training' if args.combine_train_corruptions == True else 'separate_training'
+
         if args.combine_train_corruptions == True:
             torch.save(state,
-                       f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/combined_training/'
+                       f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
                        f'{args.modeltype}_config{args.experiment}_concurrent_{args.concurrent_combinations}_run_'
                        f'{args.run}.pth')
         else:
             torch.save(state,
-                       f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/separate_training/'
+                       f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
                        f'{args.modeltype}_{args.noise}_epsilon_{args.epsilon}_{args.max}_run_{args.run}.pth')
 
         print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs")
 
-        if args.combine_train_corruptions:
-            if args.resume:
-                old_train_accs = np.loadtxt(
-                    f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/combined_training/'
-                    f'{args.modeltype}_config{args.experiment}_learning_curve_train_run'
-                    f'_{args.run}.csv', delimiter=';')
-                train_accs = np.append(old_train_accs, train_accs)
-                old_valid_accs = np.loadtxt(
-                    f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/combined_training/'
-                    f'{args.modeltype}_config{args.experiment}_learning_curve_valid_run_'
-                    f'{args.run}.csv', delimiter=';')
-                valid_accs = np.append(old_valid_accs, valid_accs)
-            np.savetxt(f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/combined_training/{args.modeltype}_'
-                       f'config{args.experiment}_learning_curve_train_run_{args.run}.csv', train_accs, delimiter=';')
-            np.savetxt(f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/combined_training/{args.modeltype}_'
-                       f'config{args.experiment}_learning_curve_valid_run_{args.run}.csv', valid_accs, delimiter=';')
-        else:
-            if args.resume:
-                old_train_accs = np.loadtxt(
-                    f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/separate_training/'
-                    f'{args.modeltype}_config{args.experiment}_learning_curve_train_'
-                    f'{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
-                train_accs = np.append(old_train_accs, train_accs)
-                old_valid_accs = np.loadtxt(
-                    f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/separate_training/'
-                    f'{args.modeltype}_config{args.experiment}_learning_curve_valid_'
-                    f'{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.csv', delimiter=';')
-                valid_accs = np.append(old_valid_accs, valid_accs)
-            np.savetxt(f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/separate_training/{args.modeltype}_'
-                       f'config{args.experiment}_learning_curve_train_{args.noise}_{args.epsilon}_{args.max}_run_'
-                       f'{args.run}.csv', train_accs, delimiter=';')
-            np.savetxt(f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/separate_training/{args.modeltype}_'
-                       f'config{args.experiment}_learning_curve_valid_{args.noise}_{args.epsilon}_{args.max}_run_'
-                       f'{args.run}.csv', valid_accs, delimiter=';')
-
-        x = list(range(1, len(train_accs) + 1))
-        plt.plot(x, train_accs, label='Train Accuracy')
-        plt.plot(x, valid_accs, label='Validation Accuracy')
-        plt.title('Training and Validation Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('Accuracy')
-        plt.xticks(np.linspace(1, len(train_accs), num=10, dtype=int))
-        plt.legend(loc='best')
-        if args.combine_train_corruptions:
-            plt.savefig(f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/combined_training/{args.modeltype}_'
-                        f'config{args.experiment}_learning_curve_run_{args.run}.svg')
-        else:
-            plt.savefig(f'results/{args.dataset}/{args.modeltype}/{args.lrschedule}/separate_training/{args.modeltype}_'
-                        f'config{args.experiment}_learning_curve_{args.noise}_{args.epsilon}_{args.max}_run_{args.run}.svg')
+        learning_curves(args.combine_train_corruptions, args.dataset, args.modeltype, args.lrschedule, args.experiment,
+                        args.run, train_accs, valid_accs, train_losses, valid_losses, training_folder, args.noise,
+                        args.epsilon, args.max)
+        shutil.copyfile(f'./experiments/configs/config{args.experiment}.py',
+                        f'./results/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/config{args.experiment}.py')

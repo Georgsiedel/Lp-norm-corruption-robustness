@@ -117,7 +117,7 @@ warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
-optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-5}
+optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
 number_workers = 1
 modeltype = 'wrn28'
 modelparams = {'dropout_rate': 0.2}
@@ -127,7 +127,7 @@ train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAug
 jsd_loss = True
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
 mixup_alpha = 0.1 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+cutmix_alpha = 0.3 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.1
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
@@ -261,7 +261,7 @@ adv_distance_params = {'setsize': 1000, 'nb_iters': 100, 'eps_iter': 0.0005, 'no
 calculate_autoattack_robustness = False
 autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
-test_count = 1
+test_count = 2
 if test_on_c:
     test_count += 19
 if combine_test_corruptions:
@@ -269,6 +269,6 @@ if combine_test_corruptions:
 else:
     test_count += test_corruptions.shape[0]
 if calculate_adv_distance:
-    test_count += 4
+    test_count += 3
 if calculate_autoattack_robustness:
     test_count += 2
