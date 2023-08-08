@@ -15,7 +15,8 @@ from torchvision import datasets, transforms
 import torchvision.models as models
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from experiments.network import WideResNet, Normalized_WideResNet
+import experiments.models as offline_models
+import experiments.models.wideresnet as wideresnet
 from experiments.sample_corrupted_img import sample_lp_corr
 import experiments.adversarial_eval as adv_eval
 from torchmetrics.classification import MulticlassCalibrationError
@@ -164,8 +165,9 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     num_classes = len(testset.classes)
 
     #Load model
-    if modeltype == 'wrn28':
-        model = WideResNet(depth = 28, widen_factor = 10, dropout_rate=modelparams['dropout_rate'], num_classes=num_classes)
+    if dataset == 'CIFAR10' or 'CIFAR100':
+        offlinemodel = getattr(offline_models, modeltype)
+        model = wideresnet.WideResNet(**modelparams)
     else:
         torchmodel = getattr(models, modeltype)
         model = torchmodel(num_classes = num_classes, **modelparams)
@@ -175,9 +177,9 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         cudnn.benchmark = True
     model.load_state_dict(torch.load(modelfilename)["net"])
     if normalize == True:
-        model = Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'],
-                                      num_classes=num_classes)
-        model = model.to(device)
+        #model = Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'],
+        #                              num_classes=num_classes)
+        #model = model.to(device)
         if device == "cuda":
             model = torch.nn.DataParallel(model).cuda()
         model.load_state_dict(torch.load(modelfilename)["net"], strict=False)

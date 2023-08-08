@@ -21,7 +21,8 @@ import torchvision.models as models
 from torchvision.transforms.autoaugment import AugMix
 from sklearn.model_selection import train_test_split
 from torch.utils.data.dataloader import default_collate
-from experiments.network import WideResNet
+
+import experiments.models.wideresnet as wideresnet
 from experiments.jsd_loss import JsdCrossEntropy
 from experiments.sample_corrupted_img import sample_lp_corr
 from experiments.earlystopping import EarlyStopping
@@ -84,8 +85,8 @@ parser.add_argument('--earlystopPatience', default=15, type=int,
 parser.add_argument('--optimizer', default='SGD', type=str, help='Optimizer from torch.optim')
 parser.add_argument('--optimizerparams', default={'momentum': 0.9, 'weight_decay': 5e-4}, type=str,
                     action=str2dictAction, metavar='KEY=VALUE', help='parameters for the optimizer')
-parser.add_argument('--modeltype', default='wrn28', type=str,
-                    help='Modeltype to train, use either defualt WRN28 or model from pytorch models')
+parser.add_argument('--modeltype', default='wideresnet', type=str,
+                    help='Modeltype to train, use either default WRN28 or model from pytorch models')
 parser.add_argument('--modelparams', default={}, type=str, action=str2dictAction, metavar='KEY=VALUE',
                     help='parameters for the chosen model')
 parser.add_argument('--resize', type=str2bool, nargs='?', const=False, default=False,
@@ -347,8 +348,9 @@ if __name__ == '__main__':
 
     # Construct model
     print('\nBuilding', args.modeltype, 'model')
-    if args.modeltype == 'wrn28':
-        net = WideResNet(depth = 28, widen_factor = 10, dropout_rate=args.modelparams['dropout_rate'], num_classes=args.num_classes)
+    if args.dataset == 'CIFAR10' or 'CIFAR100':
+        #offlinemodel = getattr(offline_models, f'{args.modeltype}.WideResNet')
+        net = wideresnet.WideResNet(**args.modelparams)
     else:
         torchmodel = getattr(models, args.modeltype)
         net = torchmodel(num_classes = args.num_classes, **args.modelparams)
@@ -360,12 +362,12 @@ if __name__ == '__main__':
         # Load checkpoint.
         print('\nResuming from checkpoint..')
         if not args.combine_train_corruptions:
-            checkpoint = torch.load(f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/'
-                                    f'separate_training/{args.modeltype}_{args.noise}_epsilon_{args.epsilon}_'
+            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/'
+                                    f'separate_training/config{args.experiment}_{args.noise}_epsilon_{args.epsilon}_'
                                     f'{args.max}_run_{args.run}.pth')
         else:
-            checkpoint = torch.load(f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/'
-                                    f'combined_training/{args.modeltype}_config{args.experiment}_concurrent_'
+            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/'
+                                    f'combined_training/config{args.experiment}_concurrent_'
                                     f'{args.concurrent_combinations}_run_{args.run}.pth')
 
         net.load_state_dict(checkpoint['net'])
@@ -380,7 +382,7 @@ if __name__ == '__main__':
     scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, realscheduler], milestones=[args.warmupepochs])
     scaler = torch.cuda.amp.GradScaler()
 
-    early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/models/checkpoint.pt')
+    early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/trained_models/checkpoint.pt')
 
     train_accs, train_losses, valid_accs, valid_losses = [], [], [], []
     # Training loop
@@ -413,7 +415,7 @@ if __name__ == '__main__':
                     break
 
         # Save best epoch
-        net.load_state_dict(torch.load('experiments/models/checkpoint.pt'))
+        net.load_state_dict(torch.load('experiments/trained_models/checkpoint.pt'))
         state = {
             'net': net.state_dict(),
             # 'acc': max(valid_accs),
@@ -424,13 +426,13 @@ if __name__ == '__main__':
 
         if args.combine_train_corruptions == True:
             torch.save(state,
-                       f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
-                       f'{args.modeltype}_config{args.experiment}_concurrent_{args.concurrent_combinations}_run_'
+                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
+                       f'config{args.experiment}_concurrent_{args.concurrent_combinations}_run_'
                        f'{args.run}.pth')
         else:
             torch.save(state,
-                       f'./experiments/models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
-                       f'{args.modeltype}_{args.noise}_epsilon_{args.epsilon}_{args.max}_run_{args.run}.pth')
+                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
+                       f'config{args.experiment}_{args.noise}_epsilon_{args.epsilon}_{args.max}_run_{args.run}.pth')
 
         print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs")
 

@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 from torch.nn import CrossEntropyLoss
 
-
 class JsdCrossEntropy(nn.Module):
     """ Jensen-Shannon Divergence + Cross-Entropy Loss
 
@@ -32,5 +31,5 @@ class JsdCrossEntropy(nn.Module):
         # Clamp mixture distribution to avoid exploding KL divergence
         logp_mixture = torch.clamp(torch.stack(probs).mean(axis=0), 1e-7, 1).log()
         loss += self.alpha * sum([F.kl_div(
-            logp_mixture, p_split, reduction='batchmean') for p_split in probs]) / len(probs)
+            logp_mixture, p_split, reduction='batchmean') for p_split in probs]) / self.num_splits
         return loss
