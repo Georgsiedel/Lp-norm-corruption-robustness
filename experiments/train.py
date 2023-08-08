@@ -137,17 +137,17 @@ if mixes:
 
 def calculate_steps():
     if args.dataset == 'ImageNet':
-        steps = 1281167/args.batchsize * (args.epochs + args.warmupepochs)
+        steps = round(1281167/args.batchsize) * (args.epochs + args.warmupepochs)
         if args.validontest == True:
-            steps += (50000/args.batchsize * (args.epochs + args.warmupepochs))
+            steps += (round(50000/args.batchsize) * (args.epochs + args.warmupepochs))
     if args.dataset == 'TinyImageNet':
-        steps = 100000/args.batchsize * (args.epochs + args.warmupepochs)
+        steps = round(100000/args.batchsize) * (args.epochs + args.warmupepochs)
         if args.validontest == True:
-            steps += (10000/args.batchsize * (args.epochs + args.warmupepochs))
+            steps += (round(10000/args.batchsize) * (args.epochs + args.warmupepochs))
     elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
-        steps = 50000 / args.batchsize * (args.epochs + args.warmupepochs)
+        steps = round(50000 / args.batchsize) * (args.epochs + args.warmupepochs)
         if args.validontest == True:
-            steps += (10000/args.batchsize * (args.epochs + args.warmupepochs))
+            steps += (round(10000/args.batchsize) * (args.epochs + args.warmupepochs))
     total_steps = int(steps)
     return total_steps
 

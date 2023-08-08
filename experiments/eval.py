@@ -11,7 +11,7 @@ import gc
 import numpy as np
 import torch.backends.cudnn as cudnn
 import torchvision
-from torchvision import datasets, transforms
+from torchvision import datasets
 import torchvision.models as models
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
@@ -177,9 +177,9 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         cudnn.benchmark = True
     model.load_state_dict(torch.load(modelfilename)["net"])
     if normalize == True:
-        #model = Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'],
-        #                              num_classes=num_classes)
-        #model = model.to(device)
+        model = wideresnet.Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'],
+                                      num_classes=num_classes)
+        model = model.to(device)
         if device == "cuda":
             model = torch.nn.DataParallel(model).cuda()
         model.load_state_dict(torch.load(modelfilename)["net"], strict=False)

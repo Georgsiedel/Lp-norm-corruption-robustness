@@ -2,6 +2,7 @@ experiments/trained_models/*
 !experiments/models/README.md
 experiments/.pytest_cache
 experiments/__pycache__
+experiments/models/__pycache__
 experiments/data/*
 !experiments/data/c-labels.txt
 .idea/
