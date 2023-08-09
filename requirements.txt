@@ -11,3 +11,4 @@ joblib>=1.1.0
 timm
 cleverhans >= 4.0.0
 pillow >=8.4.0
+autoattack @ git+https://github.com/fra31/auto-attack
