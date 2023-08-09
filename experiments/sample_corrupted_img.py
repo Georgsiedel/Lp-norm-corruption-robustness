@@ -25,11 +25,11 @@ def sample_lp_corr(noise_type, epsilon, img, density_distribution):
                 img_corr = img + (sign * epsilon)
             else: #sample uniformly inside the norm ball
                 img_corr = dist.Uniform(img - epsilon, img + epsilon).sample()
-            img_corr = np.ma.clip(img_corr, 0, 1) # clip values below 0 and over 1
+            img_corr = np.clip(img_corr, 0, 1) # clip values below 0 and over 1
         elif noise_type == 'uniform-linf-brightness': #only max-distribution, every pixel gets same manipulation
             img_corr = img
             img_corr = random.choice([img_corr - epsilon, img_corr + epsilon])
-            img_corr = np.ma.clip(img_corr, 0, 1) # clip values below 0 and over 1
+            img_corr = np.clip(img_corr, 0, 1) # clip values below 0 and over 1
         elif noise_type == 'gaussian': #note that this has no option for density_distribution=max
             var = epsilon * epsilon
             img_corr = torch.tensor(random_noise(img, mode='gaussian', mean=0, var=var, clip=True))
@@ -65,7 +65,7 @@ def sample_lp_corr(noise_type, epsilon, img, density_distribution):
                 r = np.random.random() ** (1.0 / d)
             corr = epsilon * r * u / norm  #image-sized corruption, epsilon * random radius * random array / normed
             img_corr = img + corr  # construct corrupted image by adding sampled noise
-            img_corr = np.ma.clip(img_corr, 0, 1) #clip values below 0 and over 1
+            img_corr = np.clip(img_corr, 0, 1) #clip values below 0 and over 1
         else:
             img_corr = img
             print('Unknown type of noise')

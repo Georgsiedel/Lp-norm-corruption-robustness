@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 if __name__ == '__main__':
-    import os
     import numpy as np
     import importlib
     from experiments.eval import eval_metric
