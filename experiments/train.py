@@ -135,19 +135,19 @@ if mixes:
     def collate_fn(batch):
         return mixupcutmix(*default_collate(batch))
 
-def calculate_steps():
+def calculate_steps(): #+0.5 is a way of rounding up to account for the last partial batch in every epoch
     if args.dataset == 'ImageNet':
-        steps = round(1281167/args.batchsize) * (args.epochs + args.warmupepochs)
+        steps = round(1281167/args.batchsize + 0.5) * (args.epochs + args.warmupepochs)
         if args.validontest == True:
-            steps += (round(50000/args.batchsize) * (args.epochs + args.warmupepochs))
+            steps += (round(50000/args.batchsize + 0.5) * (args.epochs + args.warmupepochs))
     if args.dataset == 'TinyImageNet':
-        steps = round(100000/args.batchsize) * (args.epochs + args.warmupepochs)
+        steps = round(100000/args.batchsize + 0.5) * (args.epochs + args.warmupepochs)
         if args.validontest == True:
-            steps += (round(10000/args.batchsize) * (args.epochs + args.warmupepochs))
+            steps += (round(10000/args.batchsize + 0.5) * (args.epochs + args.warmupepochs))
     elif args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
-        steps = round(50000 / args.batchsize) * (args.epochs + args.warmupepochs)
+        steps = round(50000 / args.batchsize + 0.5) * (args.epochs + args.warmupepochs)
         if args.validontest == True:
-            steps += (round(10000/args.batchsize) * (args.epochs + args.warmupepochs))
+            steps += (round(10000/args.batchsize + 0.5) * (args.epochs + args.warmupepochs))
     total_steps = int(steps)
     return total_steps
 
