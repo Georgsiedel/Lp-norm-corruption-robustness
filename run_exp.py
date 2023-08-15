@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [64, 62]:#range(2, experiments_number):
+    for experiment in [65, 51]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -76,7 +76,8 @@ if __name__ == '__main__':
 
             if config.combine_train_corruptions:
                 print("Corruption training of combined type")
-                filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/{config.lrschedule}/combined_training/config{experiment}_concurrent_{config.concurrent_combinations}_run_{run}.pth'
+                filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
+                           f'{config.lrschedule}_combined_run_{run}.pth'
                 test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                               config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
                                               config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
@@ -86,7 +87,8 @@ if __name__ == '__main__':
             else:
                 for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                     print("Corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
-                    filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/{config.lrschedule}/separate_training/config{experiment}_{noise_type}_epsilon_{train_epsilon}_{max}_run_{run}.pth'
+                    filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
+                               f'{config.lrschedule}_separate_{noise_type}_eps_{train_epsilon}_{max}_run_{run}.pth'
                     test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                                   config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
                                                   config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,

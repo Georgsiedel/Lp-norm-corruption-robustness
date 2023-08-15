@@ -7,7 +7,7 @@ def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_co
                 combine_train_corruptions, combine_test_corruptions, dataset, modeltype, lrschedule, experiment,
                   test_on_c, calculate_adv_distance, calculate_autoattack_robustness, runs):
 
-    training_folder = 'combined_training' if combine_train_corruptions == True else 'separate_training'
+    training_folder = 'combined' if combine_train_corruptions == True else 'separate'
 
     test_corruptions_string = np.array(['Standard_Acc', 'RMSCE'])
     if combine_train_corruptions == True:
@@ -38,17 +38,17 @@ def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_co
                                             axis=0)
 
     avg_report_frame = pd.DataFrame(avg_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
-    avg_report_frame.to_csv(f'./results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                            f'config{experiment}_metrics_test_avg.csv', index=True, header=True,
+    avg_report_frame.to_csv(f'./results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}_'
+                            f'metrics_test_avg.csv', index=True, header=True,
                             sep=';', float_format='%1.4f', decimal=',')
     if runs >= 2:
         max_report_frame = pd.DataFrame(max_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
         std_report_frame = pd.DataFrame(std_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
-        max_report_frame.to_csv(f'./results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                                f'config{experiment}_metrics_test_max.csv', index=True, header=True,
+        max_report_frame.to_csv(f'./results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}_'
+                                f'metrics_test_max.csv', index=True, header=True,
                                 sep=';', float_format='%1.4f', decimal=',')
-        std_report_frame.to_csv(f'./results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                                f'config{experiment}_metrics_test_std.csv', index=True, header=True,
+        std_report_frame.to_csv(f'./results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}_'
+                                f'metrics_test_std.csv', index=True, header=True,
                                 sep=';', float_format='%1.4f', decimal=',')
 
 def learning_curves(combine_train_corruptions, dataset, modeltype, lrschedule, experiment, run, train_accs, valid_accs,
@@ -67,15 +67,15 @@ def learning_curves(combine_train_corruptions, dataset, modeltype, lrschedule, e
     plt.legend(loc='best')
 
     if combine_train_corruptions:
-        learning_curve_frame.to_csv(f'./results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                                    f'config{experiment}_learning_curve_run_{run}.csv', index=False, header=True,
+        learning_curve_frame.to_csv(f'./results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}'
+                                    f'_learning_curve_run_{run}.csv', index=False, header=True,
                                     sep=';', float_format='%1.4f', decimal=',')
-        plt.savefig(f'results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                    f'config{experiment}_learning_curve_run_{run}.svg')
+        plt.savefig(f'results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}_'
+                    f'learning_curve_run_{run}.svg')
     else:
-        learning_curve_frame.to_csv(f'./results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                                    f'config{experiment}_learning_curve_{noise}_{epsilon}_{max}_run_'f'{run}.csv',
+        learning_curve_frame.to_csv(f'./results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}'
+                                    f'_learning_curve_{noise}_{epsilon}_{max}_run_'f'{run}.csv',
                                     index=False, header=True, sep=';', float_format='%1.4f', decimal=',')
-        plt.savefig(f'results/{dataset}/{modeltype}/{lrschedule}/{training_folder}/'
-                    f'config{experiment}_learning_curve_{noise}_{epsilon}_{max}_run_{run}.svg')
+        plt.savefig(f'results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}_'
+                    f'learning_curve_{noise}_{epsilon}_{max}_run_{run}.svg')
 

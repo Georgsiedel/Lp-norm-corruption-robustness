@@ -124,7 +124,6 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
 jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
 
-collate_fn = None
 mixes = []
 if args.mixup_alpha > 0.0:
     mixes.append(mix_transforms.RandomMixup(args.num_classes, p=1.0, alpha=args.mixup_alpha))
@@ -210,6 +209,8 @@ def train(pbar):
             inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
         elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet') and args.normalize == True:
             inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+
+        inputs, targets = mixupcutmix(inputs, targets)
 
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():
@@ -308,31 +309,27 @@ def create_transforms(dataset):
 
     return transforms_train, transforms_valid
 
-if __name__ == '__main__':
-    # Load and transform data
-    print('Preparing data..')
-    transform_train, transform_valid = create_transforms(args.dataset)
-
-    if args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet':
-        trainset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{args.dataset}/train',
+def load_data(transform_train, transform_valid, dataset, validontest):
+    if dataset == 'ImageNet' or dataset == 'TinyImageNet':
+        trainset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train',
                                                     transform=transform_train)
-        if args.validontest == True:
-            validset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{args.dataset}/val',
+        if validontest == True:
+            validset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/val',
                                                         transform=transform_valid)
         else:
-            trainset_clean = torchvision.datasets.ImageFolder(root=f'./experiments/data/{args.dataset}/train',
+            trainset_clean = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train',
                                                               transform=transform_valid)
 
-    if args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
-        load_helper = getattr(torchvision.datasets, args.dataset)
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100':
+        load_helper = getattr(torchvision.datasets, dataset)
         trainset = load_helper(root='./experiments/data', train=True, download=True, transform=transform_train)
-        if args.validontest == True:
+        if validontest == True:
             validset = load_helper(root='./experiments/data', train=False, download=True, transform=transform_valid)
         else:
             trainset_clean = load_helper(root='./experiments/data', train=True, download=True,
                                          transform=transform_valid)
 
-    if args.validontest == False: #validation splitting
+    if validontest == False: #validation splitting
         validsplit = 0.2
         train_indices, val_indices, _, _ = train_test_split(
             range(len(trainset)),
@@ -343,7 +340,14 @@ if __name__ == '__main__':
         trainset = Subset(trainset, train_indices)
         validset = Subset(trainset_clean, val_indices)
 
-    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=collate_fn, num_workers=args.number_workers)
+    return trainset, validset
+
+if __name__ == '__main__':
+    # Load and transform data
+    print('Preparing data..')
+    transform_train, transform_valid = create_transforms(args.dataset)
+    trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest)
+    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None, num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
 
     # Construct model
@@ -362,13 +366,12 @@ if __name__ == '__main__':
         # Load checkpoint.
         print('\nResuming from checkpoint..')
         if not args.combine_train_corruptions:
-            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/'
-                                    f'separate_training/config{args.experiment}_{args.noise}_epsilon_{args.epsilon}_'
-                                    f'{args.max}_run_{args.run}.pth')
+            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
+                                    f'{args.experiment}_{args.lrschedule}_separate_{args.noise_type}_eps_'
+                                    f'{args.train_epsilon}_{args.max}_run_{args.run}.pth')
         else:
-            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/'
-                                    f'combined_training/config{args.experiment}_concurrent_'
-                                    f'{args.concurrent_combinations}_run_{args.run}.pth')
+            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
+                                    f'{args.experiment}_{args.lrschedule}_combined_run_{args.run}.pth')
 
         net.load_state_dict(checkpoint['net'])
         start_epoch = checkpoint['epoch'] + 1
@@ -422,17 +425,16 @@ if __name__ == '__main__':
             # 'train_acc': train_accs[np.argmax(valid_accs)],
             # 'epoch': start_epoch-1+np.argmax(valid_accs)+1,
         }
-        training_folder = 'combined_training' if args.combine_train_corruptions == True else 'separate_training'
+        training_folder = 'combined' if args.combine_train_corruptions == True else 'separate'
 
         if args.combine_train_corruptions == True:
             torch.save(state,
-                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
-                       f'config{args.experiment}_concurrent_{args.concurrent_combinations}_run_'
-                       f'{args.run}.pth')
+                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
+                       f'{args.experiment}_{args.lrschedule}_combined_run_{args.run}.pth')
         else:
             torch.save(state,
-                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/'
-                       f'config{args.experiment}_{args.noise}_epsilon_{args.epsilon}_{args.max}_run_{args.run}.pth')
+                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config{args.experiment}_'
+                       f'{args.lrschedule}_separate_{args.noise_type}_eps_{args.train_epsilon}_{args.max}_run_{args.run}.pth')
 
         print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs")
 
@@ -440,4 +442,4 @@ if __name__ == '__main__':
                         args.run, train_accs, valid_accs, train_losses, valid_losses, training_folder, args.noise,
                         args.epsilon, args.max)
         shutil.copyfile(f'./experiments/configs/config{args.experiment}.py',
-                        f'./results/{args.dataset}/{args.modeltype}/{args.lrschedule}/{training_folder}/config{args.experiment}.py')
+                        f'./results/{args.dataset}/{args.modeltype}/config{args.experiment}_{args.lrschedule}_{training_folder}.py')
