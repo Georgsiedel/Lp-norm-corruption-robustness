@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     experiments_number = 28
 
-    for experiment in [65, 51]:#range(2, experiments_number):
+    for experiment in [51, 49, 65]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -61,7 +61,7 @@ if __name__ == '__main__':
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
                             config.warmupepochs, config.normalize, config.num_classes)
-                os.system(cmd0)
+                #os.system(cmd0)
 
         # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
         print('Beginning metric evaluation')
@@ -79,7 +79,7 @@ if __name__ == '__main__':
                 filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
                            f'{config.lrschedule}_combined_run_{run}.pth'
                 test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
-                                              config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
+                                              config.modeltype, config.modelparams, config.resize, config.dataset, 384,
                                               config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
                                               config.calculate_autoattack_robustness, config.autoattack_params)
                 test_metrics[:, 0] = np.array(test_metric_col)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
                     filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
                                f'{config.lrschedule}_separate_{noise_type}_eps_{train_epsilon}_{max}_run_{run}.pth'
                     test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
-                                                  config.modeltype, config.modelparams, config.resize, config.dataset, config.batchsize,
+                                                  config.modeltype, config.modelparams, config.resize, config.dataset, 384,
                                                   config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
                                                   config.calculate_autoattack_robustness, config.autoattack_params)
                     test_metrics[:, idx] = np.array(test_metric_col)

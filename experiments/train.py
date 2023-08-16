@@ -17,16 +17,15 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 import torchvision
 import torchvision.transforms as transforms
-import torchvision.models as models
+import torchvision.models as torchmodels
 from torchvision.transforms.autoaugment import AugMix
 from sklearn.model_selection import train_test_split
-from torch.utils.data.dataloader import default_collate
 
-import experiments.models.wideresnet as wideresnet
 from experiments.jsd_loss import JsdCrossEntropy
 from experiments.sample_corrupted_img import sample_lp_corr
 from experiments.earlystopping import EarlyStopping
 from experiments.visuals_and_reports import learning_curves
+import experiments.models as low_dim_models
 import experiments.mix_transforms as mix_transforms
 
 import torch.backends.cudnn as cudnn
@@ -124,16 +123,6 @@ start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
 jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
 
-mixes = []
-if args.mixup_alpha > 0.0:
-    mixes.append(mix_transforms.RandomMixup(args.num_classes, p=1.0, alpha=args.mixup_alpha))
-if args.cutmix_alpha > 0.0:
-    mixes.append(mix_transforms.RandomCutmix(args.num_classes, p=1.0, alpha=args.cutmix_alpha))
-if mixes:
-    mixupcutmix = torchvision.transforms.RandomChoice(mixes)
-    def collate_fn(batch):
-        return mixupcutmix(*default_collate(batch))
-
 def calculate_steps(): #+0.5 is a way of rounding up to account for the last partial batch in every epoch
     if args.dataset == 'ImageNet':
         steps = round(1281167/args.batchsize + 0.5) * (args.epochs + args.warmupepochs)
@@ -149,6 +138,29 @@ def calculate_steps(): #+0.5 is a way of rounding up to account for the last par
             steps += (round(10000/args.batchsize + 0.5) * (args.epochs + args.warmupepochs))
     total_steps = int(steps)
     return total_steps
+
+def normalize(inputs, dataset):
+    if dataset == 'CIFAR10':
+        inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
+    elif args.dataset == 'CIFAR100':
+        inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(
+            inputs)
+    elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet'):
+        inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+    else:
+        print('no normalization values set for this dataset')
+    return inputs
+
+def mixing_functions(inputs, targets, mixup_alpha, cutmix_alpha, num_classes):
+    mixes = []
+    if mixup_alpha > 0.0:
+        mixes.append(mix_transforms.RandomMixup(num_classes, p=1.0, alpha=mixup_alpha))
+    if cutmix_alpha > 0.0:
+        mixes.append(mix_transforms.RandomCutmix(num_classes, p=1.0, alpha=cutmix_alpha))
+    if mixes:
+        mixupcutmix = torchvision.transforms.RandomChoice(mixes)
+        inputs, targets = mixupcutmix(inputs, targets)
+    return inputs, targets
 
 def apply_augstrat(img):
     img = img * 255.0
@@ -180,7 +192,7 @@ def apply_lp_corruption(img):
 
 def train(pbar):
     """ Perform epoch of training"""
-    net.train()
+    model.train()
     correct, total, train_loss, avg_train_loss = 0, 0, 0, 0
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
@@ -201,20 +213,16 @@ def train(pbar):
 
         if args.jsd_loss == True:
             inputs = torch.cat((inputs_orig, inputs, inputs_pert), 0)
-        if args.resize == True and args.dataset == 'CIFAR10' or args.dataset == 'CIFAR100':
-            inputs = transforms.Resize(224)(inputs)
-        if args.dataset == 'CIFAR10' and args.normalize == True:
-            inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
-        elif args.dataset == 'CIFAR100' and args.normalize == True:
-            inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
-        elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet') and args.normalize == True:
-            inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+        if args.resize == True:
+            inputs = transforms.Resize(224, antialias=True)(inputs)
+        if args.normalize == True:
+            inputs = normalize(inputs, args.dataset)
 
-        inputs, targets = mixupcutmix(inputs, targets)
+        inputs, targets = mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
 
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():
-            outputs = net(inputs)
+            outputs = model(inputs)
             if args.jsd_loss == True:
                 loss = jsdcrossentropy(outputs, targets)
             else:
@@ -222,7 +230,7 @@ def train(pbar):
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_value_(net.parameters(), clip_value=1)
+        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1)
         scaler.step(optimizer)
         scaler.update()
         torch.cuda.synchronize()
@@ -246,24 +254,20 @@ def train(pbar):
 
 def valid(pbar):
     """ Test current network on validation set"""
-    net.eval()
+    model.eval()
     test_loss, correct, total, avg_test_loss = 0, 0, 0, 0
 
     for batch_idx, (inputs, targets) in enumerate(validationloader):
 
-        if args.resize == True and args.dataset == 'CIFAR10':
-            inputs = transforms.Resize(224)(inputs)
-        if args.dataset == 'CIFAR10' and args.normalize == True:
-            inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
-        elif args.dataset == 'CIFAR100' and args.normalize == True:
-            inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(inputs)
-        elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet') and args.normalize == True:
-            inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+        if args.resize == True:
+            inputs = transforms.Resize(224, antialias=True)(inputs)
+        if args.normalize == True:
+            inputs = normalize(inputs, args.dataset)
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         targets_pert = targets
 
         with torch.cuda.amp.autocast():
-            targets_pert_pred = net(inputs)
+            targets_pert_pred = model(inputs)
             loss = crossentropy(targets_pert_pred, targets_pert)
 
         test_loss += loss.item()
@@ -285,9 +289,9 @@ def create_transforms(dataset):
     c32 = transforms.RandomCrop(32, padding=4)
     c64 = transforms.RandomCrop(64, padding=8)
     flip = transforms.RandomHorizontalFlip()
-    r256 = transforms.Resize(256)
+    r256 = transforms.Resize(256, antialias=True)
     c224 = transforms.CenterCrop(224)
-    rrc224 = transforms.RandomResizedCrop(224)
+    rrc224 = transforms.RandomResizedCrop(224, antialias=True)
     re = transforms.RandomErasing(p=args.RandomEraseProbability)
 
     # transformations of validation set
@@ -298,8 +302,7 @@ def create_transforms(dataset):
         transforms_valid = transforms.Compose([transforms_valid, r256, c224])
 
     # transformations of training set
-    transforms_train = transforms.Compose([flip])
-    transforms_train = transforms.Compose([transforms_train, t, re])
+    transforms_train = transforms.Compose([flip, t, re])
     if dataset == 'CIFAR10' or dataset == 'CIFAR100':
         transforms_train = transforms.Compose([transforms_train, c32])
     elif dataset == 'TinyImageNet':
@@ -352,15 +355,15 @@ if __name__ == '__main__':
 
     # Construct model
     print('\nBuilding', args.modeltype, 'model')
-    if args.dataset == 'CIFAR10' or 'CIFAR100':
-        #offlinemodel = getattr(offline_models, f'{args.modeltype}.WideResNet')
-        net = wideresnet.WideResNet(**args.modelparams)
+    if args.dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
+        low_dim_model = getattr(low_dim_models, args.modeltype)
+        model = low_dim_model(**args.modelparams)
     else:
-        torchmodel = getattr(models, args.modeltype)
-        net = torchmodel(num_classes = args.num_classes, **args.modelparams)
-    net = net.to(device)
+        torchmodel = getattr(torchmodels, args.modeltype)
+        model = torchmodel(num_classes = args.num_classes, **args.modelparams)
+    model = model.to(device)
     if device == 'cuda':
-        net = torch.nn.DataParallel(net)
+        model = torch.nn.DataParallel(model)
 
     if args.resume == 'True':
         # Load checkpoint.
@@ -373,16 +376,16 @@ if __name__ == '__main__':
             checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
                                     f'{args.experiment}_{args.lrschedule}_combined_run_{args.run}.pth')
 
-        net.load_state_dict(checkpoint['net'])
+        model.load_state_dict(checkpoint['net'])
         start_epoch = checkpoint['epoch'] + 1
 
     opti = getattr(optim, args.optimizer)
-    optimizer = opti(net.parameters(), lr=args.learningrate, **args.optimizerparams)
-
-    warmupscheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=args.warmupepochs)
+    optimizer = opti(model.parameters(), lr=args.learningrate, **args.optimizerparams)
     schedule = getattr(optim.lr_scheduler, args.lrschedule)
-    realscheduler = schedule(optimizer, **args.lrparams)
-    scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, realscheduler], milestones=[args.warmupepochs])
+    scheduler = schedule(optimizer, **args.lrparams)
+    if args.warmupepochs > 0:
+        warmupscheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=args.warmupepochs)
+        scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, scheduler], milestones=[args.warmupepochs])
     scaler = torch.cuda.amp.GradScaler()
 
     early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/trained_models/checkpoint.pt')
@@ -412,15 +415,15 @@ if __name__ == '__main__':
                 else:
                     scheduler.step()
 
-                early_stopping(valid_loss, net)
+                early_stopping(valid_loss, model)
                 if args.earlystop and early_stopping.early_stop:
                     print("Early stopping")
                     break
 
         # Save best epoch
-        net.load_state_dict(torch.load('experiments/trained_models/checkpoint.pt'))
+        model.load_state_dict(torch.load('experiments/trained_models/checkpoint.pt'))
         state = {
-            'net': net.state_dict(),
+            'net': model.state_dict(),
             # 'acc': max(valid_accs),
             # 'train_acc': train_accs[np.argmax(valid_accs)],
             # 'epoch': start_epoch-1+np.argmax(valid_accs)+1,
@@ -436,7 +439,8 @@ if __name__ == '__main__':
                        f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config{args.experiment}_'
                        f'{args.lrschedule}_separate_{args.noise_type}_eps_{args.train_epsilon}_{args.max}_run_{args.run}.pth')
 
-        print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs")
+        print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs; "
+             "Minimum validation loss of", min(valid_losses), "achieved after", np.argmax(valid_losses) + 1, "epochs; ")
 
         learning_curves(args.combine_train_corruptions, args.dataset, args.modeltype, args.lrschedule, args.experiment,
                         args.run, train_accs, valid_accs, train_losses, valid_losses, training_folder, args.noise,

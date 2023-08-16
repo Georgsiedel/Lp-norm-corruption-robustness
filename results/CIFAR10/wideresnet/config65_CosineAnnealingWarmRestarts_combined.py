@@ -105,38 +105,30 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, False]
 ])
 
-batchsize = 512
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
-if dataset == 'CIFAR10':
-    num_classes = 10
-elif dataset == 'CIFAR100':
-    num_classes = 100
-elif dataset == 'ImageNet':
-    num_classes = 1000
-elif dataset == 'TinyImageNet':
-    num_classes = 200
+batchsize = 384
+dataset = 'CIFAR10' #ImageNet #CIFAR100
 normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
-learningrate = 0.15
+learningrate = 0.1
 epochs = 310
 lrparams = {'T_0': 10, 'T_mult': 2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
-optimizerparams = {'momentum': 0.9, 'weight_decay': 1e-4}
+optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-5}
 number_workers = 1
-modeltype = 'WideResNet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.3, 'num_classes': num_classes}
+modeltype = 'wideresnet'
+modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.2, 'num_classes': 10}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
-jsd_loss = False
-lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
-mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
-RandomEraseProbability = 0.0
+jsd_loss = True
+lossparams = {'num_splits': 3, 'alpha': 20, 'smoothing': 0.1}
+mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+cutmix_alpha = 1.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+RandomEraseProbability = 0.1
 
 combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
@@ -146,7 +138,14 @@ if combine_train_corruptions:
 else:
     model_count = train_corruptions.shape[0]
 
-
+if dataset == 'CIFAR10':
+    num_classes = 10
+elif dataset == 'CIFAR100':
+    num_classes = 100
+elif dataset == 'ImageNet':
+    num_classes = 1000
+elif dataset == 'TinyImageNet':
+    num_classes = 200
 
 #define train and test corruptions:
 #define noise type (first column): 'gaussian', 'uniform-l0-impulse', 'uniform-l0-salt-pepper', 'uniform-linf'. also: all positive numbers p>0 for uniform Lp possible: 'uniform-l1', 'uniform-l2', ...

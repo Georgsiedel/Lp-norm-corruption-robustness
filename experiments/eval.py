@@ -12,12 +12,13 @@ import numpy as np
 import torch.backends.cudnn as cudnn
 import torchvision
 from torchvision import datasets
-import torchvision.models as models
+import torchvision.models as torchmodels
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-import experiments.models as offline_models
+import experiments.models as low_dim_models
 import experiments.models.wideresnet as wideresnet
 from experiments.sample_corrupted_img import sample_lp_corr
+from experiments.normalized_model_wrapper import create_normalized_model_wrapper
 import experiments.adversarial_eval as adv_eval
 from torchmetrics.classification import MulticlassCalibrationError
 
@@ -44,11 +45,12 @@ def compute_metric(loader, net, noise_type, epsilon, max, combine, resize):
                 else:
                     inputs_pert[id] = sample_lp_corr(noise_type, epsilon, img, 'other')
         if resize == True:
-            inputs_pert = transforms.Resize(224)(inputs_pert)
+            inputs_pert = transforms.Resize(224, antialias=True)(inputs_pert)
 
         inputs_pert, targets = inputs_pert.to(device, dtype=torch.float), targets.to(device)
         targets_pert = targets
-        targets_pert_pred = net(inputs_pert)
+        with torch.cuda.amp.autocast():
+            targets_pert_pred = net(inputs_pert)
 
         _, predicted = targets_pert_pred.max(1)
         total += targets_pert.size(0)
@@ -62,29 +64,28 @@ def compute_clean(loader, net, resize, num_classes):
         net.eval()
         correct = 0
         total = 0
-        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=20, norm='l2')
-        rmsce_batches = []
-        n_images = []
+        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=15, norm='l2')
+        all_targets = torch.empty(0)
+        all_targets_pred = torch.empty((0, num_classes))
+        all_targets, all_targets_pred = all_targets.to(device), all_targets_pred.to(device)
 
         for batch_idx, (inputs, targets) in enumerate(loader):
             if resize == True:
-                inputs = transforms.Resize(224)(inputs)
+                inputs = transforms.Resize(224, antialias=True)(inputs)
 
             inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
-            targets_pred = net(inputs)
+            with torch.cuda.amp.autocast():
+                targets_pred = net(inputs)
 
             _, predicted = targets_pred.max(1)
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
-
-            rmsce = calibration_metric(targets_pred, targets)
-            rmsce_batches += [rmsce.item() ** 2] #in order to average values over all batches later
-            n_images += [len(targets)] #in order to put the correct weighting on the last (smaller) batch
+            all_targets = torch.cat((all_targets, targets), 0)
+            all_targets_pred = torch.cat((all_targets_pred, targets_pred), 0)
 
         acc = 100.*correct/total
-        rmsce_batches = np.asarray(rmsce_batches)
-        n_images = np.asarray(n_images)
-        rmsce = np.sqrt(sum(rmsce_batches * n_images) / sum(n_images)) #weighted sum and average over batches and sqrt-operation we undid above
+        rmsce = float(calibration_metric(all_targets_pred, all_targets).cpu())
+
         return acc, rmsce
 
 def compute_metric_imagenet_c(loader_c, net):
@@ -95,7 +96,8 @@ def compute_metric_imagenet_c(loader_c, net):
         inputs = inputs / 255
 
         inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
-        targets_pred = net(inputs)
+        with torch.cuda.amp.autocast():
+            targets_pred = net(inputs)
 
         _, predicted = targets_pred.max(1)
         total += targets.size(0)
@@ -117,7 +119,8 @@ def compute_metric_cifar_c(loader, loader_c, net, batchsize):
                 inputs_c[id] = input_c
 
             inputs_c, targets = inputs_c.to(device, dtype=torch.float), targets.to(device)
-            targets_pred = net(inputs_c)
+            with torch.cuda.amp.autocast():
+                targets_pred = net(inputs_c)
 
             _, predicted = targets_pred.max(1)
             total += targets.size(0)
@@ -128,13 +131,14 @@ def compute_metric_cifar_c(loader, loader_c, net, batchsize):
     return (acc)
 
 def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelparams, resize,
-                dataset, batchsize, workers, normalize, calculate_adv_distance, adv_distance_params, calculate_autoattack_robustness, autoattack_params):
+                dataset, batchsize, workers, normalize, calculate_adv_distance, adv_distance_params,
+                calculate_autoattack_robustness, autoattack_params):
     if dataset == 'ImageNet':
-        test_transforms = transforms.Compose([transforms.Resize(256),
+        test_transforms = transforms.Compose([transforms.Resize(256, antialias=True),
                                               transforms.CenterCrop(224),
                                               transforms.ToTensor()])
-    elif dataset == 'CIFAR10' and resize == True:
-        test_transforms = transforms.Compose([transforms.Resize(224),
+    elif resize == True:
+        test_transforms = transforms.Compose([transforms.Resize(224, antialias=True),
                                               transforms.ToTensor()])
     else:
         test_transforms = transforms.Compose([transforms.ToTensor()])
@@ -151,27 +155,27 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     num_classes = len(testset.classes)
 
     #Load model
-    if dataset == 'CIFAR10' or 'CIFAR100':
-        offlinemodel = getattr(offline_models, modeltype)
-        model = wideresnet.WideResNet(**modelparams)
+    if dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
+        low_dim_model = getattr(low_dim_models, modeltype)
+        model = low_dim_model(**modelparams)
     else:
-        torchmodel = getattr(models, modeltype)
-        model = torchmodel(num_classes = num_classes, **modelparams)
+        torchmodel = getattr(torchmodels, modeltype)
+        model = torchmodel(num_classes=num_classes, **modelparams)
     model = model.to(device)
     if device == "cuda":
         model = torch.nn.DataParallel(model).cuda()
         cudnn.benchmark = True
     model.load_state_dict(torch.load(modelfilename)["net"])
     if normalize == True:
-        model = wideresnet.Normalized_WideResNet(depth=28, widen_factor=10, dropout_rate=modelparams['dropout_rate'],
-                                      num_classes=num_classes)
+        Normalized_Model_Wrapper = create_normalized_model_wrapper(dataset, modeltype)
+        model = Normalized_Model_Wrapper(**modelparams)
         model = model.to(device)
         if device == "cuda":
             model = torch.nn.DataParallel(model).cuda()
         model.load_state_dict(torch.load(modelfilename)["net"], strict=False)
 
     accs = []
-    acc, rmsce = compute_clean(test_loader, model, resize, dataset, normalize, num_classes)
+    acc, rmsce = compute_clean(test_loader, model, resize, num_classes)
     accs = accs + [acc, rmsce]
     print("Clean Accuracy ",acc,"%, RMSCE Calibration Error: ", rmsce)
 
@@ -186,12 +190,7 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
                 test_loader_c = test_loader_c.permute(0, 3, 1, 2)
                 test_loader_c = test_loader_c / 255.0
                 if resize == True:
-                    test_loader_c = transforms.Resize(224)(test_loader_c)
-                #if normalize == True and dataset == 'CIFAR10':
-                #    test_loader_c = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(test_loader_c)
-                #if normalize == True and dataset == 'CIFAR100':
-                #    test_loader_c = transforms.Normalize((0.50707516, 0.48654887, 0.44091784),
-                #                                    (0.26733429, 0.25643846, 0.27615047))(test_loader_c)
+                    test_loader_c = transforms.Resize(224, antialias=True)(test_loader_c)
                 acc = compute_metric_cifar_c(test_loader, test_loader_c, model, batchsize)
                 accs.append(acc)
                 print(acc, f"% mean (avg. over 5 intensities) Accuracy on {dataset}-c corrupted data of type", corruption)
@@ -202,9 +201,9 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
 
                 for intensity in range(1, 6):
                     load_c = datasets.ImageFolder(root=f'./experiments/data/{dataset}-c/'+corruption+'/'+str(intensity),
-                                    transform=transforms.Compose([transforms.CenterCrop(224), transforms.ToTensor()]))
+                                    transform=test_transforms)
                     test_loader_c = DataLoader(load_c, batch_size=batchsize, shuffle=False)
-                    acc = compute_metric_imagenet_c(test_loader_c, model, normalize)
+                    acc = compute_metric_imagenet_c(test_loader_c, model)
                     acc_intensities.append(acc)
                 acc = sum(acc_intensities) / 5
                 accs.append(acc)
@@ -215,12 +214,12 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
 
     if combine_test_corruptions:
         acc = compute_metric(test_loader, model, test_corruptions, test_corruptions, test_corruptions,
-                             combine_test_corruptions, resize, dataset, normalize)
+                             combine_test_corruptions, resize)
         print(acc, "% Accuracy on combined Lp-norm Test Noise")
         accs.append(acc)
     else:
         for id, (noise_type, test_epsilon, max) in enumerate(test_corruptions):
-            acc = compute_metric(test_loader, model, noise_type, test_epsilon, max, combine_test_corruptions, resize, dataset, normalize)
+            acc = compute_metric(test_loader, model, noise_type, test_epsilon, max, combine_test_corruptions, resize)
             print(acc, "% Accuracy on random test corupptions of type:", noise_type, test_epsilon, "with maximal-perturbation =", max)
             accs.append(acc)
     if calculate_adv_distance == True:
