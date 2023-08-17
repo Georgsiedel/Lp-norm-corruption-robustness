@@ -5,5 +5,8 @@ experiments/__pycache__
 experiments/models/__pycache__
 experiments/data/*
 !experiments/data/c-labels.txt
+!experiments/data/README.md
+experiments/configs/__pycache__
+experiments/models/__pycache__
 .idea/
 organizational/
