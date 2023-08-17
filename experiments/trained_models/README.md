@@ -1,9 +1,7 @@
-Following folder structure is required to save models in the path defined in train.py:
+This folder saves trained models (and a checkpoint) in a structured way.
 
-experiments/models/[dataset]/[modeltype]/[lrschedule]/combined_training/
+Following folder structure is required to save models according to the path defined in train.py:
 
-and
+experiments/trained_models/[dataset]/[modeltype]/
 
-experiments/models/[dataset]/[modeltype]/[lrschedule]/separate_training/
-
-where all variables in [] are from the respective variable in the config-py file used for defining model training and testing.
+where all variables in [] must be equal to the respective variable in the config-py file used for defining model training and testing.
