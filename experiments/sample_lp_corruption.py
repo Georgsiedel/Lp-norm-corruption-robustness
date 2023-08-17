@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import re
 import torch
 import torchvision
@@ -10,8 +7,6 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import torch.distributions as dist
-x_min = torch.tensor([0, 0, 0])
-x_max = torch.tensor([1, 1, 1])
 
 def sample_lp_corr(noise_type, epsilon, img, density_distribution):
     d = len(img.ravel())
@@ -71,24 +66,16 @@ def sample_lp_corr(noise_type, epsilon, img, density_distribution):
             print('Unknown type of noise')
     return img_corr
 
-
 #Sample 3 images in original form and with a chosen maximum corruption of a chose Lp norm.
 #Use this e.g. to estimate maximum Lp-corruptions which should not change the class, or which are quasi-imperceptible.
-def sample_corr_img(n_images = 3, random = False, noise_type = 'uniform-linf', epsilon = 8/255, density_distribution = "max"):
-    transform_train = transforms.Compose([
-        transforms.ToTensor()
-        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
-    transform_test = transforms.Compose([
-        transforms.ToTensor()
-        # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
+def sample_lp_corr_img(n_images = 3, seed = -1, noise_type = 'uniform-linf', epsilon = 8/255, density_distribution = "max"):
+    transform_train = transforms.Compose([transforms.ToTensor()])
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=False)
-    j = 1
     fig, axs = plt.subplots(n_images, 2)
+    j = seed
     for i in range(n_images):
-        if random == True:
+        if seed == -1:
             j = random.randint(0, len(trainloader)) # selecting random images from the train dataset
         for id, (input, target) in enumerate(trainloader):
             if j == id:
@@ -106,5 +93,5 @@ def sample_corr_img(n_images = 3, random = False, noise_type = 'uniform-linf', e
     return fig
 
 if __name__ == '__main__':
-    fig = sample_corr_img(3, False, 'uniform-l2', 1, "max")
+    fig = sample_lp_corr_img(3, -1, 'uniform-l2', 1, "max")
     plt.show()

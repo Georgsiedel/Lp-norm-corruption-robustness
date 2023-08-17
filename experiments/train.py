@@ -1,32 +1,22 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import argparse
 import ast
-import random
 import importlib
 import copy
 import numpy as np
 from tqdm import tqdm
 import shutil
-import torch
 import torch.nn as nn
 import torch.cuda.amp
 import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
-import torchvision
-import torchvision.transforms as transforms
 import torchvision.models as torchmodels
-from torchvision.transforms.autoaugment import AugMix
 from sklearn.model_selection import train_test_split
 
 from experiments.jsd_loss import JsdCrossEntropy
-from experiments.sample_corrupted_img import sample_lp_corr
-from experiments.earlystopping import EarlyStopping
+from experiments.data_transforms import *
+import experiments.checkpoints as checkpoints
 from experiments.visuals_and_reports import learning_curves
 import experiments.models as low_dim_models
-import experiments.mix_transforms as mix_transforms
 
 import torch.backends.cudnn as cudnn
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -60,7 +50,7 @@ class str2dictAction(argparse.Action):
 
 parser = argparse.ArgumentParser(description='PyTorch Training with perturbations')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--noise', default='gaussian', type=str, help='type of noise')
+parser.add_argument('--noise', default='standard', type=str, help='type of noise')
 parser.add_argument('--epsilon', default=0.0, type=float, help='perturbation radius')
 parser.add_argument('--run', default=0, type=int, help='run number')
 parser.add_argument('--max', type=str2bool, nargs='?', const=False, default=False,
@@ -119,7 +109,6 @@ parser.add_argument('--num_classes', default=10, type=int,
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
 config = importlib.import_module(configname)
-start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
 jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
 
@@ -139,59 +128,7 @@ def calculate_steps(): #+0.5 is a way of rounding up to account for the last par
     total_steps = int(steps)
     return total_steps
 
-def normalize(inputs, dataset):
-    if dataset == 'CIFAR10':
-        inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
-    elif args.dataset == 'CIFAR100':
-        inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(
-            inputs)
-    elif (args.dataset == 'ImageNet' or args.dataset == 'TinyImageNet'):
-        inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
-    else:
-        print('no normalization values set for this dataset')
-    return inputs
-
-def mixing_functions(inputs, targets, mixup_alpha, cutmix_alpha, num_classes):
-    mixes = []
-    if mixup_alpha > 0.0:
-        mixes.append(mix_transforms.RandomMixup(num_classes, p=1.0, alpha=mixup_alpha))
-    if cutmix_alpha > 0.0:
-        mixes.append(mix_transforms.RandomCutmix(num_classes, p=1.0, alpha=cutmix_alpha))
-    if mixes:
-        mixupcutmix = torchvision.transforms.RandomChoice(mixes)
-        inputs, targets = mixupcutmix(inputs, targets)
-    return inputs, targets
-
-def apply_augstrat(img):
-    img = img * 255.0
-    img = torch.clip(img, 0.0, 255.0)
-    img = img.type(torch.uint8)
-    if args.train_aug_strat == 'AugMix':
-        img = AugMix()(img)
-    else:
-        tf = getattr(transforms, args.train_aug_strat)
-        img = tf()(img)
-    img = img.type(torch.float32) / 255.0
-    return img
-
-def apply_lp_corruption(img):
-    if args.combine_train_corruptions == True:
-        corruptions_list = random.sample(list(config.train_corruptions), k=args.concurrent_combinations)
-        for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
-            train_epsilon = float(train_epsilon)
-            if max == 'True':
-                img = sample_lp_corr(noise_type, train_epsilon, img, 'other')
-            else:
-                img = sample_lp_corr(noise_type, train_epsilon, img, 'max')
-    else:
-        if args.max == 'True':
-            img = sample_lp_corr(args.noise, args.epsilon, img, 'other')
-        else:
-            img = sample_lp_corr(args.noise, args.epsilon, img, 'max')
-    return img
-
 def train(pbar):
-    """ Perform epoch of training"""
     model.train()
     correct, total, train_loss, avg_train_loss = 0, 0, 0, 0
 
@@ -202,14 +139,16 @@ def train(pbar):
         for id, img1 in enumerate(inputs):
             if args.jsd_loss == True:
                 img2 = copy.deepcopy(img1)
-            if args.aug_strat_check == True: #and not (args.train_aug_strat == 'AugMix' and args.jsd_loss == True):
-                img1 = apply_augstrat(img1)
+            if args.aug_strat_check == True:
+                img1 = apply_augstrat(img1, args.train_aug_strat)
                 if args.jsd_loss == True:
-                    img2 = apply_augstrat(img2)
+                    img2 = apply_augstrat(img2, args.train_aug_strat)
 
-            inputs[id] = apply_lp_corruption(img1)
+            inputs[id] = apply_lp_corruption(img1, args.combine_train_corruptions, config.train_corruptions,
+                                             args.concurrent_combinations, args.max, args.noise, args.epsilon)
             if args.jsd_loss == True:
-                inputs_pert[id] = apply_lp_corruption(img2)
+                inputs_pert[id] = apply_lp_corruption(img2, args.combine_train_corruptions, args.train_corruptions,
+                                                      args.concurrent_combinations, args.max, args.noise, args.epsilon)
 
         if args.jsd_loss == True:
             inputs = torch.cat((inputs_orig, inputs, inputs_pert), 0)
@@ -218,7 +157,7 @@ def train(pbar):
         if args.normalize == True:
             inputs = normalize(inputs, args.dataset)
 
-        inputs, targets = mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
+        inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
 
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():
@@ -244,16 +183,14 @@ def train(pbar):
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
         avg_train_loss = train_loss / (batch_idx + 1)
-        pbar.set_description('[Train] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(avg_train_loss,
-                                                                                 100. * correct / total,
-                                                                                 correct, total))
+        pbar.set_description('[Train] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(
+            avg_train_loss, 100. * correct / total, correct, total))
         pbar.update(1)
 
     train_acc = 100. * correct / total
     return train_acc, avg_train_loss
 
 def valid(pbar):
-    """ Test current network on validation set"""
     model.eval()
     test_loss, correct, total, avg_test_loss = 0, 0, 0, 0
 
@@ -283,35 +220,6 @@ def valid(pbar):
     acc = 100. * correct / total
     return acc, avg_test_loss
 
-def create_transforms(dataset):
-    # list of all data transformations used
-    t = transforms.ToTensor()
-    c32 = transforms.RandomCrop(32, padding=4)
-    c64 = transforms.RandomCrop(64, padding=8)
-    flip = transforms.RandomHorizontalFlip()
-    r256 = transforms.Resize(256, antialias=True)
-    c224 = transforms.CenterCrop(224)
-    rrc224 = transforms.RandomResizedCrop(224, antialias=True)
-    re = transforms.RandomErasing(p=args.RandomEraseProbability)
-
-    # transformations of validation set
-    transforms_valid = transforms.Compose([t])
-    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'TinyImageNet':
-        transforms_valid = transforms.Compose([transforms_valid])
-    elif dataset == 'ImageNet':
-        transforms_valid = transforms.Compose([transforms_valid, r256, c224])
-
-    # transformations of training set
-    transforms_train = transforms.Compose([flip, t, re])
-    if dataset == 'CIFAR10' or dataset == 'CIFAR100':
-        transforms_train = transforms.Compose([transforms_train, c32])
-    elif dataset == 'TinyImageNet':
-        transforms_train = transforms.Compose([transforms_train, c64])
-    elif dataset == 'ImageNet':
-        transforms_train = transforms.Compose([transforms_train, rrc224])
-
-    return transforms_train, transforms_valid
-
 def load_data(transform_train, transform_valid, dataset, validontest):
     if dataset == 'ImageNet' or dataset == 'TinyImageNet':
         trainset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train',
@@ -322,7 +230,6 @@ def load_data(transform_train, transform_valid, dataset, validontest):
         else:
             trainset_clean = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train',
                                                               transform=transform_valid)
-
     if dataset == 'CIFAR10' or dataset == 'CIFAR100':
         load_helper = getattr(torchvision.datasets, dataset)
         trainset = load_helper(root='./experiments/data', train=True, download=True, transform=transform_train)
@@ -348,37 +255,21 @@ def load_data(transform_train, transform_valid, dataset, validontest):
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-    transform_train, transform_valid = create_transforms(args.dataset)
+    transform_train, transform_valid = create_transforms(args.dataset, args.RandomEraseProbability)
     trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest)
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None, num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
 
     # Construct model
-    print('\nBuilding', args.modeltype, 'model')
+    print(f'\nBuilding {args.modeltype} model with {args.modelparams} | Augmentation strategy: {args.aug_strat_check}'
+          f' | JSD loss:{args.jsd_loss}')
     if args.dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
-        low_dim_model = getattr(low_dim_models, args.modeltype)
-        model = low_dim_model(**args.modelparams)
+        model_class = getattr(low_dim_models, args.modeltype)
     else:
-        torchmodel = getattr(torchmodels, args.modeltype)
-        model = torchmodel(num_classes = args.num_classes, **args.modelparams)
-    model = model.to(device)
-    if device == 'cuda':
-        model = torch.nn.DataParallel(model)
+        model_class = getattr(torchmodels, args.modeltype)
+    model = torch.nn.DataParallel(model_class(num_classes = args.num_classes, **args.modelparams).to(device))
 
-    if args.resume == 'True':
-        # Load checkpoint.
-        print('\nResuming from checkpoint..')
-        if not args.combine_train_corruptions:
-            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
-                                    f'{args.experiment}_{args.lrschedule}_separate_{args.noise_type}_eps_'
-                                    f'{args.train_epsilon}_{args.max}_run_{args.run}.pth')
-        else:
-            checkpoint = torch.load(f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
-                                    f'{args.experiment}_{args.lrschedule}_combined_run_{args.run}.pth')
-
-        model.load_state_dict(checkpoint['net'])
-        start_epoch = checkpoint['epoch'] + 1
-
+    # Define Optimizer, Learningrate Scheduler, Scaler, and Early Stopping
     opti = getattr(optim, args.optimizer)
     optimizer = opti(model.parameters(), lr=args.learningrate, **args.optimizerparams)
     schedule = getattr(optim.lr_scheduler, args.lrschedule)
@@ -387,23 +278,26 @@ if __name__ == '__main__':
         warmupscheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=args.warmupepochs)
         scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, scheduler], milestones=[args.warmupepochs])
     scaler = torch.cuda.amp.GradScaler()
+    early_stopper = checkpoints.EarlyStopping(patience=args.earlystopPatience, verbose=False)
 
-    early_stopping = EarlyStopping(patience=args.earlystopPatience, verbose=False, path='experiments/trained_models/checkpoint.pt')
-
-    train_accs, train_losses, valid_accs, valid_losses = [], [], [], []
-    # Training loop
-    print('\nTraining model..')
-    if args.aug_strat_check == True:
-        print(args.train_aug_strat, 'is used')
-    if args.jsd_loss == True:
-        print('JSD loss is used')
-
+    # Some necessary parameters
     total_steps = calculate_steps()
+    train_accs, train_losses, valid_accs, valid_losses = [], [], [], []
+    training_folder = 'combined' if args.combine_train_corruptions == True else 'separate'
+    filename_spec = str(f"_{args.noise_type}_eps_{args.train_epsilon}_{args.max}_" if
+                        args.combine_train_corruptions == False else f"_")
+    start_epoch, end_epoch = 0, args.epochs
 
+    # Resume from checkpoint
+    if args.resume == 'True':
+        print('\nResuming from checkpoint..')
+        start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
+
+    # Training loop
     with tqdm(total=total_steps) as pbar:
         with torch.autograd.set_detect_anomaly(False, check_nan=False): #this may resolve some Cuda/cuDNN errors.
             # check_nan=True increases 32bit precision train time by ~20% and causes errors due to nan values for mixep precision training.
-            for epoch in range(start_epoch, start_epoch + args.epochs):
+            for epoch in range(start_epoch, end_epoch):
                 train_acc, train_loss = train(pbar)
                 valid_acc, valid_loss = valid(pbar)
                 train_accs.append(train_acc)
@@ -415,35 +309,22 @@ if __name__ == '__main__':
                 else:
                     scheduler.step()
 
-                early_stopping(valid_loss, model)
-                if args.earlystop and early_stopping.early_stop:
+                checkpoints.save_model(epoch, model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
+                early_stopper(valid_loss, model)
+                if args.earlystop and early_stopper.early_stop:
                     print("Early stopping")
+                    end_epoch = epoch
                     break
 
-        # Save best epoch
-        model.load_state_dict(torch.load('experiments/trained_models/checkpoint.pt'))
-        state = {
-            'net': model.state_dict(),
-            # 'acc': max(valid_accs),
-            # 'train_acc': train_accs[np.argmax(valid_accs)],
-            # 'epoch': start_epoch-1+np.argmax(valid_accs)+1,
-        }
-        training_folder = 'combined' if args.combine_train_corruptions == True else 'separate'
-
-        if args.combine_train_corruptions == True:
-            torch.save(state,
-                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config'
-                       f'{args.experiment}_{args.lrschedule}_combined_run_{args.run}.pth')
-        else:
-            torch.save(state,
-                       f'./experiments/trained_models/{args.dataset}/{args.modeltype}/config{args.experiment}_'
-                       f'{args.lrschedule}_separate_{args.noise_type}_eps_{args.train_epsilon}_{args.max}_run_{args.run}.pth')
-
+        # Save final model
+        checkpoints.save_model(epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
+                                                        f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
+                                                        f'{training_folder}{filename_spec}run_{args.run}.pth')
+        # print results
         print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs; "
-             "Minimum validation loss of", min(valid_losses), "achieved after", np.argmax(valid_losses) + 1, "epochs; ")
-
-        learning_curves(args.combine_train_corruptions, args.dataset, args.modeltype, args.lrschedule, args.experiment,
-                        args.run, train_accs, valid_accs, train_losses, valid_losses, training_folder, args.noise,
-                        args.epsilon, args.max)
+             "Minimum validation loss of", min(valid_losses), "achieved after", np.argmin(valid_losses) + 1, "epochs; ")
+        # save learning curves and config file
+        learning_curves(args.dataset, args.modeltype, args.lrschedule, args.experiment, args.run, train_accs,
+                        valid_accs, train_losses, valid_losses, training_folder, filename_spec)
         shutil.copyfile(f'./experiments/configs/config{args.experiment}.py',
                         f'./results/{args.dataset}/{args.modeltype}/config{args.experiment}_{args.lrschedule}_{training_folder}.py')

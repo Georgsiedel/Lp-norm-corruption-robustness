@@ -1,8 +1,18 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import random
+import torch
+import torch.cuda.amp
+import torchvision
+import torchvision.transforms as transforms
 import math
 from typing import Tuple
-import torch
 from torch import Tensor
 from torchvision.transforms import functional as F
+
+from experiments.sample_lp_corruption import sample_lp_corr
 
 class RandomMixup(torch.nn.Module):
     """Randomly apply Mixup to the provided batch and targets.
@@ -85,7 +95,6 @@ class RandomMixup(torch.nn.Module):
             f")"
         )
         return s
-
 
 class RandomCutmix(torch.nn.Module):
     """Randomly apply Cutmix to the provided batch and targets.
@@ -179,3 +188,80 @@ class RandomCutmix(torch.nn.Module):
             f")"
         )
         return s
+
+def apply_mixing_functions(inputs, targets, mixup_alpha, cutmix_alpha, num_classes):
+    mixes = []
+    if mixup_alpha > 0.0:
+        mixes.append(RandomMixup(num_classes, p=1.0, alpha=mixup_alpha))
+    if cutmix_alpha > 0.0:
+        mixes.append(RandomCutmix(num_classes, p=1.0, alpha=cutmix_alpha))
+    if mixes:
+        mixupcutmix = torchvision.transforms.RandomChoice(mixes)
+        inputs, targets = mixupcutmix(inputs, targets)
+    return inputs, targets
+
+def normalize(inputs, dataset):
+    if dataset == 'CIFAR10':
+        inputs = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))(inputs)
+    elif dataset == 'CIFAR100':
+        inputs = transforms.Normalize((0.50707516, 0.48654887, 0.44091784), (0.26733429, 0.25643846, 0.27615047))(
+            inputs)
+    elif (dataset == 'ImageNet' or dataset == 'TinyImageNet'):
+        inputs = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))(inputs)
+    else:
+        print('no normalization values set for this dataset')
+    return inputs
+
+def apply_augstrat(img, train_aug_strat):
+    img = img * 255.0
+    img = torch.clip(img, 0.0, 255.0)
+    img = img.type(torch.uint8)
+    tf = getattr(transforms, train_aug_strat)
+    img = tf()(img)
+    img = img.type(torch.float32) / 255.0
+    return img
+
+def apply_lp_corruption(img, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
+    if combine_train_corruptions == True:
+        corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
+        for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
+            train_epsilon = float(train_epsilon)
+            if max == 'True':
+                img = sample_lp_corr(noise_type, train_epsilon, img, 'other')
+            else:
+                img = sample_lp_corr(noise_type, train_epsilon, img, 'max')
+    else:
+        if max == 'True':
+            img = sample_lp_corr(noise, epsilon, img, 'other')
+        else:
+            img = sample_lp_corr(noise, epsilon, img, 'max')
+    return img
+
+def create_transforms(dataset, RandomEraseProbability):
+    # list of all data transformations used
+    t = transforms.ToTensor()
+    c32 = transforms.RandomCrop(32, padding=4)
+    c64 = transforms.RandomCrop(64, padding=8)
+    flip = transforms.RandomHorizontalFlip()
+    r256 = transforms.Resize(256, antialias=True)
+    c224 = transforms.CenterCrop(224)
+    rrc224 = transforms.RandomResizedCrop(224, antialias=True)
+    re = transforms.RandomErasing(p=RandomEraseProbability)
+
+    # transformations of validation set
+    transforms_valid = transforms.Compose([t])
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100' or dataset == 'TinyImageNet':
+        transforms_valid = transforms.Compose([transforms_valid])
+    elif dataset == 'ImageNet':
+        transforms_valid = transforms.Compose([transforms_valid, r256, c224])
+
+    # transformations of training set
+    transforms_train = transforms.Compose([flip, t, re])
+    if dataset == 'CIFAR10' or dataset == 'CIFAR100':
+        transforms_train = transforms.Compose([transforms_train, c32])
+    elif dataset == 'TinyImageNet':
+        transforms_train = transforms.Compose([transforms_train, c64])
+    elif dataset == 'ImageNet':
+        transforms_train = transforms.Compose([transforms_train, rrc224])
+
+    return transforms_train, transforms_valid

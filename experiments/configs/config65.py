@@ -125,10 +125,10 @@ warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
-optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
+optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-5}
 number_workers = 1
-modeltype = 'wideresnet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.2, 'num_classes': num_classes}
+modeltype = 'WideResNet'
+modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.2}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
@@ -262,7 +262,7 @@ autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
 test_count = 2
 if test_on_c:
-    test_count += 19
+    test_count += 20
 if combine_test_corruptions:
     test_count += 1
 else:

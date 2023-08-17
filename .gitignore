@@ -6,3 +6,4 @@ experiments/models/__pycache__
 experiments/data/*
 !experiments/data/c-labels.txt
 .idea/
+organizational/
