@@ -9,7 +9,7 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in [50, 52, 51, 65]:#range(2, experiments_number):
+    for experiment in [51, 48, 65, 0, 1, 2, 3]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -27,14 +27,15 @@ if __name__ == '__main__':
                            "--modelparams=\"{}\" --resize={} --aug_strat_check={} --train_aug_strat={} --jsd_loss={} " \
                            "--mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} --concurrent_combinations={} " \
                            "--batchsize={} --number_workers={} --lossparams=\"{}\" --RandomEraseProbability={} " \
-                           "--warmupepochs={} --normalize={} --num_classes={}".format(noise_type, train_epsilon, max, run,
-                           experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
-                           config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience, config.optimizer,
-                           config.optimizerparams, config.modeltype, config.modelparams, config.resize, config.aug_strat_check,
-                           config.train_aug_strat, config.jsd_loss, config.mixup_alpha, config.cutmix_alpha,
-                           config.combine_train_corruptions, config.concurrent_combinations, config.batchsize,
-                           config.number_workers, config.lossparams, config.RandomEraseProbability, config.warmupepochs,
-                           config.normalize, config.num_classes)
+                           "--warmupepochs={} --normalize={} --num_classes={} --pixel_factor={}"\
+                        .format(noise_type, train_epsilon, max, run, experiment, config.epochs, config.learningrate,
+                                config.dataset, config.validontest, config.lrschedule, config.lrparams, config.earlystop,
+                                config.earlystopPatience, config.optimizer, config.optimizerparams, config.modeltype,
+                                config.modelparams, config.resize, config.aug_strat_check, config.train_aug_strat,
+                                config.jsd_loss, config.mixup_alpha, config.cutmix_alpha, config.combine_train_corruptions,
+                                config.concurrent_combinations, config.batchsize, config.number_workers, config.lossparams,
+                                config.RandomEraseProbability, config.warmupepochs, config.normalize, config.num_classes,
+                                config.pixel_factor)
                     os.system(cmd0)
 
             if config.combine_train_corruptions:
@@ -44,14 +45,14 @@ if __name__ == '__main__':
                        "--optimizerparams=\"{}\" --modeltype={} --modelparams=\"{}\" --resize={} --aug_strat_check={} " \
                        "--train_aug_strat={} --jsd_loss={} --mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} " \
                        "--concurrent_combinations={} --batchsize={} --number_workers={} --lossparams=\"{}\" " \
-                       "--RandomEraseProbability={} --warmupepochs={} --normalize={} --num_classes={}"\
+                       "--RandomEraseProbability={} --warmupepochs={} --normalize={} --num_classes={} --pixel_factor={}"\
                     .format(run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
                             config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience,
                             config.optimizer, config.optimizerparams, config.modeltype, config.modelparams, config.resize,
                             config.aug_strat_check, config.train_aug_strat, config.jsd_loss, config.mixup_alpha,
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
-                            config.warmupepochs, config.normalize, config.num_classes)
+                            config.warmupepochs, config.normalize, config.num_classes, config.pixel_factor)
                 os.system(cmd0)
 
         # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
@@ -72,7 +73,7 @@ if __name__ == '__main__':
                 test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                               config.modeltype, config.modelparams, config.resize, config.dataset, 2048,
                                               config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
-                                              config.calculate_autoattack_robustness, config.autoattack_params)
+                                              config.calculate_autoattack_robustness, config.autoattack_params, config.pixel_factor)
                 test_metrics[:, 0] = np.array(test_metric_col)
                 print(test_metric_col)
             else:
@@ -83,7 +84,7 @@ if __name__ == '__main__':
                     test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                                   config.modeltype, config.modelparams, config.resize, config.dataset, 2048,
                                                   config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
-                                                  config.calculate_autoattack_robustness, config.autoattack_params)
+                                                  config.calculate_autoattack_robustness, config.autoattack_params, config.pixel_factor)
                     test_metrics[:, idx] = np.array(test_metric_col)
                     print(test_metric_col)
 

@@ -60,15 +60,15 @@ parser.add_argument('--experiment', default=0, type=int,
 parser.add_argument('--batchsize', default=128, type=int,
                     help='Images per batch - more means quicker training, but higher memory demand')
 parser.add_argument('--dataset', default='CIFAR10', type=str, help='Dataset to choose')
-parser.add_argument('--validontest', type=str2bool, nargs='?', const=True, default=True,
-                    help='For datasets wihtout standout validation (e.g. CIFAR). True: Use full training data, False: Split 20% for valiationd')
+parser.add_argument('--validontest', type=str2bool, nargs='?', const=True, default=True, help='For datasets wihtout '
+                    'standout validation (e.g. CIFAR). True: Use full training data, False: Split 20% for valiationd')
 parser.add_argument('--epochs', default=100, type=int, help="number of epochs")
 parser.add_argument('--learningrate', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lrschedule', default='MultiStepLR', type=str, help='Learning rate scheduler from pytorch.')
 parser.add_argument('--lrparams', default={'milestones': [85, 95], 'gamma': 0.2}, type=str, action=str2dictAction,
                     metavar='KEY=VALUE', help='parameters for the learning rate scheduler')
-parser.add_argument('--earlystop', type=str2bool, nargs='?', const=False, default=False,
-                    help='Use earlystopping after some epochs (patience) of no increase in performance, then break training and reset to best checkpoint')
+parser.add_argument('--earlystop', type=str2bool, nargs='?', const=False, default=False, help='Use earlystopping after '
+                    'some epochs (patience) of no increase in performance')
 parser.add_argument('--earlystopPatience', default=15, type=int,
                     help='Number of epochs to wait for a better performance if earlystop is True')
 parser.add_argument('--optimizer', default='SGD', type=str, help='Optimizer from torch.optim')
@@ -85,16 +85,16 @@ parser.add_argument('--aug_strat_check', type=str2bool, nargs='?', const=True, d
 parser.add_argument('--train_aug_strat', default='TrivialAugmentWide', type=str, help='auto-augmentation scheme')
 parser.add_argument('--jsd_loss', type=str2bool, nargs='?', const=False, default=False,
                     help='Whether to use Jensen-Shannon-Divergence loss function (enforcing smoother models)')
-parser.add_argument('--mixup_alpha', default=0.0, type=float,
-                    help='Mixup Alpha parameter, Pytorch suggests 0.2. If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance')
-parser.add_argument('--cutmix_alpha', default=0.0, type=float,
-                    help='Cutmix Alpha parameter, Pytorch suggests 1.0. If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance')
+parser.add_argument('--mixup_alpha', default=0.0, type=float, help='Mixup Alpha parameter, Pytorch suggests 0.2. If '
+                    'both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance')
+parser.add_argument('--cutmix_alpha', default=0.0, type=float, help='Cutmix Alpha parameter, Pytorch suggests 1.0. If '
+                    'both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance')
 parser.add_argument('--combine_train_corruptions', type=str2bool, nargs='?', const=True, default=True,
                     help='Whether to combine all training noise values by drawing from the randomly')
-parser.add_argument('--concurrent_combinations', default=1, type=int,
-                    help='How many of the training noise values should be applied at once on one image. USe only if you defined multiple training noise values.')
-parser.add_argument('--number_workers', default=4, type=int,
-                    help='How many workers are launched to parallelize data loading. Experimental. 4 seems to make sense. More demand GPU memory, but maximize GPU usage.')
+parser.add_argument('--concurrent_combinations', default=1, type=int, help='How many of the training noise values should '
+                    'be applied at once on one image. USe only if you defined multiple training noise values.')
+parser.add_argument('--number_workers', default=4, type=int, help='How many workers are launched to parallelize data '
+                    'loading. Experimental. 4 for ImageNet, 1 for Cifar. More demand GPU memory, but maximize GPU usage.')
 parser.add_argument('--lossparams', default={'num_splits': 3, 'alpha': 12, 'smoothing': 0}, type=str, action=str2dictAction, metavar='KEY=VALUE',
                     help='parameters for the JSD loss function')
 parser.add_argument('--RandomEraseProbability', default=0.0, type=float,
@@ -103,8 +103,9 @@ parser.add_argument('--warmupepochs', default=5, type=int,
                     help='Number of Warmupepochs for stable training early on. Start with factor 10 lower learning rate')
 parser.add_argument('--normalize', type=str2bool, nargs='?', const=False, default=False,
                     help='Whether to normalize input data to mean=0 and std=1')
-parser.add_argument('--num_classes', default=10, type=int,
-                    help='Number of classes of the dataset')
+parser.add_argument('--num_classes', default=10, type=int, help='Number of classes of the dataset')
+parser.add_argument('--pixel_factor', default=1, type=int, help='default is 1 for 32px (CIFAR10), '
+                    'e.g. 2 for 64px images. Scales convolutions automatically in the same model architecture')
 
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
@@ -262,12 +263,14 @@ if __name__ == '__main__':
 
     # Construct model
     print(f'\nBuilding {args.modeltype} model with {args.modelparams} | Augmentation strategy: {args.aug_strat_check}'
-          f' | JSD loss:{args.jsd_loss}')
+          f' | JSD loss: {args.jsd_loss}')
     if args.dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
         model_class = getattr(low_dim_models, args.modeltype)
+        model = model_class(num_classes=args.num_classes, factor=args.pixel_factor, **args.modelparams)
     else:
         model_class = getattr(torchmodels, args.modeltype)
-    model = torch.nn.DataParallel(model_class(num_classes = args.num_classes, **args.modelparams).to(device))
+        model = model_class(num_classes = args.num_classes, **args.modelparams)
+    model = torch.nn.DataParallel(model).to(device)
 
     # Define Optimizer, Learningrate Scheduler, Scaler, and Early Stopping
     opti = getattr(optim, args.optimizer)
@@ -316,15 +319,15 @@ if __name__ == '__main__':
                     end_epoch = epoch
                     break
 
-        # Save final model
-        checkpoints.save_model(epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
-                                                        f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
-                                                        f'{training_folder}{filename_spec}run_{args.run}.pth')
-        # print results
-        print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs; "
-             "Minimum validation loss of", min(valid_losses), "achieved after", np.argmin(valid_losses) + 1, "epochs; ")
-        # save learning curves and config file
-        learning_curves(args.dataset, args.modeltype, args.lrschedule, args.experiment, args.run, train_accs,
-                        valid_accs, train_losses, valid_losses, training_folder, filename_spec)
-        shutil.copyfile(f'./experiments/configs/config{args.experiment}.py',
-                        f'./results/{args.dataset}/{args.modeltype}/config{args.experiment}_{args.lrschedule}_{training_folder}.py')
+    # Save final model
+    checkpoints.save_model(epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
+                                                    f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
+                                                    f'{training_folder}{filename_spec}run_{args.run}.pth')
+    # print results
+    print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs; "
+         "Minimum validation loss of", min(valid_losses), "achieved after", np.argmin(valid_losses) + 1, "epochs; ")
+    # save learning curves and config file
+    learning_curves(args.dataset, args.modeltype, args.lrschedule, args.experiment, args.run, train_accs,
+                    valid_accs, train_losses, valid_losses, training_folder, filename_spec)
+    shutil.copyfile(f'./experiments/configs/config{args.experiment}.py',
+                    f'./results/{args.dataset}/{args.modeltype}/config{args.experiment}_{args.lrschedule}_{training_folder}.py')

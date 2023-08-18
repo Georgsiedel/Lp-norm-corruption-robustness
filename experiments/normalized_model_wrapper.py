@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import torch
-import experiments.models as models
+import experiments.models as low_dim_models
 
 def create_normalized_model_wrapper(dataset, modeltype):
     if dataset == 'CIFAR10':
@@ -16,7 +16,7 @@ def create_normalized_model_wrapper(dataset, modeltype):
         mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
         std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
-    model = getattr(models, modeltype)
+    model = getattr(low_dim_models, modeltype)
 
     class Normalized_Model_Wrapper(model):
         def __init__(self, **kwargs):

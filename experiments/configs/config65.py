@@ -109,12 +109,15 @@ batchsize = 384
 dataset = 'CIFAR10' #ImageNet #CIFAR100
 if dataset == 'CIFAR10':
     num_classes = 10
+    pixel_factor = 1
 elif dataset == 'CIFAR100':
     num_classes = 100
+    pixel_factor = 1
 elif dataset == 'ImageNet':
     num_classes = 1000
 elif dataset == 'TinyImageNet':
     num_classes = 200
+    pixel_factor = 2
 normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'

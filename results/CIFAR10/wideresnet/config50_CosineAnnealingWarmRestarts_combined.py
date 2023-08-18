@@ -109,15 +109,12 @@ batchsize = 512
 dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
-    pixel_factor = 1
 elif dataset == 'CIFAR100':
     num_classes = 100
-    pixel_factor = 1
 elif dataset == 'ImageNet':
     num_classes = 1000
 elif dataset == 'TinyImageNet':
     num_classes = 200
-    pixel_factor = 2
 normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
@@ -131,7 +128,7 @@ optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 1e-4}
 number_workers = 1
 modeltype = 'WideResNet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.3}
+modelparams = {'depth': 28, 'widen_factor': 2, 'dropout_rate': 0.3}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix

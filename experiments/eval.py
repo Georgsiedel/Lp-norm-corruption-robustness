@@ -144,7 +144,7 @@ def compute_metric_cifar_c(loader, loader_c, net, batchsize, num_classes):
 
 def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_on_c, modeltype, modelparams, resize,
                 dataset, batchsize, workers, normalize, calculate_adv_distance, adv_distance_params,
-                calculate_autoattack_robustness, autoattack_params):
+                calculate_autoattack_robustness, autoattack_params, pixel_factor):
     if dataset == 'ImageNet':
         test_transforms = transforms.Compose([transforms.Resize(256, antialias=True),
                                               transforms.CenterCrop(224),
@@ -169,19 +169,19 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     #Load model
     if dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
         model_class = getattr(low_dim_models, modeltype)
+        model = model_class(num_classes=num_classes, factor=pixel_factor, **modelparams)
+        if normalize == True:
+            Normalized_Model_Wrapper = create_normalized_model_wrapper(dataset, modeltype)
+            model = Normalized_Model_Wrapper(num_classes=num_classes, factor=pixel_factor, **modelparams)
     else:
         model_class = getattr(torchmodels, modeltype)
-    model = torch.nn.DataParallel(model_class(num_classes=num_classes, **modelparams).to(device))
+        model = model_class(num_classes = num_classes, **modelparams)
+        if normalize == True:
+            Normalized_Model_Wrapper = create_normalized_model_wrapper(dataset, modeltype)
+            model = Normalized_Model_Wrapper(num_classes=num_classes, **modelparams)
+    model = torch.nn.DataParallel(model).to(device)
     cudnn.benchmark = True
-
-    model.load_state_dict(torch.load(modelfilename)["net"])
-    if normalize == True:
-        Normalized_Model_Wrapper = create_normalized_model_wrapper(dataset, modeltype)
-        model = Normalized_Model_Wrapper(num_classes=num_classes, **modelparams)
-        model = model.to(device)
-        if device == "cuda":
-            model = torch.nn.DataParallel(model).cuda()
-        model.load_state_dict(torch.load(modelfilename)["net"], strict=False)
+    model.load_state_dict(torch.load(modelfilename)["model_state_dict"], strict=False)
 
     accs = []
     acc, rmsce = compute_clean(test_loader, model, resize, num_classes)

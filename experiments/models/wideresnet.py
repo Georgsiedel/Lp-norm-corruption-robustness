@@ -75,7 +75,7 @@ class Bottleneck(nn.Module):
 
 
 class WideResNet(nn.Module):
-    def __init__(self, depth, widen_factor, dropout_rate, num_classes):
+    def __init__(self, depth, widen_factor, dropout_rate=0.3, num_classes=10, factor=1, block=WideBasic):
         super(WideResNet, self).__init__()
         self.in_planes = 16
 
@@ -85,10 +85,10 @@ class WideResNet(nn.Module):
 
         nStages = [16, 16*k, 32*k, 64*k]
 
-        self.conv1 = conv3x3(3,nStages[0], stride=1)
-        self.layer1 = self._wide_layer(WideBasic, nStages[1], n, dropout_rate, stride=1)
-        self.layer2 = self._wide_layer(WideBasic, nStages[2], n, dropout_rate, stride=2)
-        self.layer3 = self._wide_layer(WideBasic, nStages[3], n, dropout_rate, stride=2)
+        self.conv1 = conv3x3(3,nStages[0], stride=factor)
+        self.layer1 = self._wide_layer(block, nStages[1], n, dropout_rate, stride=1)
+        self.layer2 = self._wide_layer(block, nStages[2], n, dropout_rate, stride=2)
+        self.layer3 = self._wide_layer(block, nStages[3], n, dropout_rate, stride=2)
         self.bn1 = nn.BatchNorm2d(nStages[3], momentum=0.9)
         self.linear = nn.Linear(nStages[3], num_classes)
 
@@ -114,20 +114,5 @@ class WideResNet(nn.Module):
 
         return out
 
-class Normalized_WideResNet(WideResNet):
-
-    def __init__(self, depth=28, widen_factor=10, dropout_rate=0.3, num_classes=10):
-        super(Normalized_WideResNet, self).__init__(depth=depth,
-                                                     widen_factor=widen_factor,
-                                                    dropout_rate=dropout_rate,
-                                                    num_classes=num_classes)
-        self.register_buffer(
-            'mu',
-            torch.tensor([0.4914, 0.4822, 0.4465]).view(1, 3, 1, 1))
-        self.register_buffer(
-            'sigma',
-            torch.tensor([0.247, 0.243, 0.261]).view(1, 3, 1, 1))
-
-    def forward(self, x):
-        x = (x - self.mu) / self.sigma
-        return super(Normalized_WideResNet, self).forward(x)
+def WideResNet_28_10(num_classes, factor, block=WideBasic, dropout_rate=0.3):
+    return WideResNet(depth=28, widen_factor=10, dropout_rate=dropout_rate, num_classes=num_classes, factor=factor, block=block)
