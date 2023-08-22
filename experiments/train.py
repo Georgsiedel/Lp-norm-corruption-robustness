@@ -148,7 +148,7 @@ def train(pbar):
             inputs[id] = apply_lp_corruption(img1, args.combine_train_corruptions, config.train_corruptions,
                                              args.concurrent_combinations, args.max, args.noise, args.epsilon)
             if args.jsd_loss == True:
-                inputs_pert[id] = apply_lp_corruption(img2, args.combine_train_corruptions, args.train_corruptions,
+                inputs_pert[id] = apply_lp_corruption(img2, args.combine_train_corruptions, config.train_corruptions,
                                                       args.concurrent_combinations, args.max, args.noise, args.epsilon)
 
         if args.jsd_loss == True:

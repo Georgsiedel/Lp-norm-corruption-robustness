@@ -109,26 +109,29 @@ batchsize = 512
 dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
+    pixel_factor = 1
 elif dataset == 'CIFAR100':
     num_classes = 100
+    pixel_factor = 1
 elif dataset == 'ImageNet':
     num_classes = 1000
 elif dataset == 'TinyImageNet':
     num_classes = 200
+    pixel_factor = 2
 normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
-learningrate = 0.1
+learningrate = 0.15
 epochs = 310
 lrparams = {'T_0': 10, 'T_mult': 2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
-optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
+optimizerparams = {'momentum': 0.9, 'weight_decay': 1e-4}
 number_workers = 1
-modeltype = 'wideresnet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.3, 'num_classes': num_classes}
+modeltype = 'WideResNet'
+modelparams = {'depth': 28, 'widen_factor': 12, 'dropout_rate': 0.3}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
@@ -264,7 +267,7 @@ autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
 test_count = 2
 if test_on_c:
-    test_count += 19
+    test_count += 20
 if combine_test_corruptions:
     test_count += 1
 else:

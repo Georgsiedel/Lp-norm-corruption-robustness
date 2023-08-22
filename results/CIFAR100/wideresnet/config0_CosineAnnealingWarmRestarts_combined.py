@@ -106,7 +106,7 @@ train_corruptions = np.array([
 ])
 
 batchsize = 384
-dataset = 'TinyImageNet' #ImageNet #CIFAR100 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
