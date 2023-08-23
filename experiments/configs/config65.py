@@ -121,7 +121,7 @@ elif dataset == 'TinyImageNet':
 normalize = True
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
-learningrate = 0.12
+learningrate = 0.1
 epochs = 372
 lrparams = {'T_0': 12, 'T_mult': 2}
 warmupepochs = 0
@@ -131,7 +131,7 @@ optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
 number_workers = 1
 modeltype = 'WideResNet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.1}
+modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.3}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
