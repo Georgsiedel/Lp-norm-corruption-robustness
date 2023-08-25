@@ -292,7 +292,7 @@ if __name__ == '__main__':
     start_epoch, end_epoch = 0, args.epochs
 
     # Resume from checkpoint
-    if args.resume == 'True':
+    if args.resume:
         print('\nResuming from checkpoint..')
         start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
 
@@ -320,7 +320,7 @@ if __name__ == '__main__':
                     break
 
     # Save final model
-    checkpoints.save_model(epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
+    checkpoints.save_model(end_epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
                                                     f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
                                                     f'{training_folder}{filename_spec}run_{args.run}.pth')
     # print results

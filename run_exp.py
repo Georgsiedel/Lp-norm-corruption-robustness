@@ -1,15 +1,16 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
 if __name__ == '__main__':
-    import os
     import numpy as np
     import importlib
     from experiments.eval import eval_metric
     from experiments.visuals_and_reports import create_report
 
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in [65, 2, 51, 52, 3, 4, 5]:#range(2, experiments_number):
+    for experiment in [52, 53]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
