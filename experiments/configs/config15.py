@@ -48,11 +48,11 @@ elif dataset == 'ImageNet':
 elif dataset == 'TinyImageNet':
     num_classes = 200
     pixel_factor = 2
-normalize = True
+normalize = False
 validontest = True
 lrschedule = 'MultiStepLR'
 learningrate = 0.1
-epochs = 100
+epochs = 1
 lrparams = {'milestones': [85, 95], 'gamma': 0.1}
 warmupepochs = 0
 earlystop = False
