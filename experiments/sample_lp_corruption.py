@@ -1,6 +1,7 @@
 import re
 import torch
 import torchvision
+from torchvision import datasets
 import torchvision.transforms as transforms
 from skimage.util import random_noise
 import numpy as np
@@ -68,16 +69,24 @@ def sample_lp_corr(noise_type, epsilon, img, density_distribution):
 
 #Sample 3 images in original form and with a chosen maximum corruption of a chose Lp norm.
 #Use this e.g. to estimate maximum Lp-corruptions which should not change the class, or which are quasi-imperceptible.
-def sample_lp_corr_img(n_images = 3, seed = -1, noise_type = 'uniform-linf', epsilon = 8/255, density_distribution = "max"):
-    transform_train = transforms.Compose([transforms.ToTensor()])
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=False)
+def sample_lp_corr_img(n_images = 3, seed = -1, noise_type = 'uniform-linf', epsilon = 8/255, density_distribution = "max", dataset = 'CIFAR10'):
+    transform = transforms.Compose([transforms.ToTensor()])
+    if dataset == 'ImageNet' or dataset == 'TinyImageNet':
+        trainset = torchvision.datasets.ImageFolder(root=f'./data/{dataset}/train', transform=transform)
+        truncated_set = torch.utils.data.Subset(trainset, range(0, 100000, 5000))
+        loader = torch.utils.data.DataLoader(truncated_set, batch_size=1, shuffle=False)
+    else:
+        load_helper = getattr(datasets, dataset)
+        trainset = load_helper(root='./data', train=True, download=True, transform=transform)
+        truncated_set = torch.utils.data.Subset(trainset, range(0, 100000, 5000))
+        loader = torch.utils.data.DataLoader(truncated_set, batch_size=1, shuffle=False)
+
     fig, axs = plt.subplots(n_images, 2)
     j = seed
     for i in range(n_images):
         if seed == -1:
-            j = random.randint(0, len(trainloader)) # selecting random images from the train dataset
-        for id, (input, target) in enumerate(trainloader):
+            j = random.randint(0, len(loader)) # selecting random images from the train dataset
+        for id, (input, target) in enumerate(loader):
             if j == id:
                 image = input
                 corrupted_image = input
@@ -93,5 +102,5 @@ def sample_lp_corr_img(n_images = 3, seed = -1, noise_type = 'uniform-linf', eps
     return fig
 
 if __name__ == '__main__':
-    fig = sample_lp_corr_img(3, -1, 'uniform-l2', 1, "max")
+    fig = sample_lp_corr_img(3, -1, 'uniform-l1', 100, "max", "TinyImageNet")
     plt.show()

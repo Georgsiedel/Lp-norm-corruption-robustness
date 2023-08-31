@@ -19,14 +19,6 @@ def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_co
         test_corruptions_label = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
         test_corruptions_string = np.append(test_corruptions_string, test_corruptions_label, axis=0)
         test_corruptions_string = np.append(test_corruptions_string, ['RMSCE_C'], axis=0)
-    if combine_test_corruptions == True:
-        test_corruptions_label = ['Acc_config']
-        test_corruptions_string = np.append(test_corruptions_string, test_corruptions_label)
-    else:
-        test_corruptions_labels = test_corruptions.astype(str)
-        test_corruptions_labels = np.array([','.join(row) for row in test_corruptions_labels])
-        test_corruptions_string = np.append(test_corruptions_string, test_corruptions_labels)
-
     if calculate_adv_distance == True:
         test_corruptions_string = np.append(test_corruptions_string, ['Acc_from_PGD_adv_distance_calculation',
                                                                       'Mean_adv_distance_with_misclassified_images_0)',
@@ -36,6 +28,13 @@ def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_co
         test_corruptions_string = np.append(test_corruptions_string,
                                             ['Adversarial_accuracy_autoattack', 'Mean_adv_distance_autoattack)'],
                                             axis=0)
+    if combine_test_corruptions == True:
+        test_corruptions_label = ['Acc_config']
+        test_corruptions_string = np.append(test_corruptions_string, test_corruptions_label)
+    else:
+        test_corruptions_labels = test_corruptions.astype(str)
+        test_corruptions_labels = np.array([','.join(row) for row in test_corruptions_labels])
+        test_corruptions_string = np.append(test_corruptions_string, test_corruptions_labels)
 
     avg_report_frame = pd.DataFrame(avg_test_metrics, index=test_corruptions_string, columns=train_corruptions_string)
     avg_report_frame.to_csv(f'./results/{dataset}/{modeltype}/config{experiment}_{lrschedule}_{training_folder}_'

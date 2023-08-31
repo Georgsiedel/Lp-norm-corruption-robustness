@@ -85,8 +85,8 @@ class WideResNet(nn.Module):
 
         nStages = [16, 16*k, 32*k, 64*k]
 
-        self.conv1 = conv3x3(3,nStages[0], stride=factor)
-        self.layer1 = self._wide_layer(block, nStages[1], n, dropout_rate, stride=1)
+        self.conv1 = conv3x3(3,nStages[0], stride=1)
+        self.layer1 = self._wide_layer(block, nStages[1], n, dropout_rate, stride=factor)
         self.layer2 = self._wide_layer(block, nStages[2], n, dropout_rate, stride=2)
         self.layer3 = self._wide_layer(block, nStages[3], n, dropout_rate, stride=2)
         self.bn1 = nn.BatchNorm2d(nStages[3], momentum=0.9)
@@ -114,5 +114,14 @@ class WideResNet(nn.Module):
 
         return out
 
+def WideResNet_28_4(num_classes, factor, block=WideBasic, dropout_rate=0.3):
+    return WideResNet(depth=28, widen_factor=4, dropout_rate=dropout_rate, num_classes=num_classes, factor=factor, block=block)
+
 def WideResNet_28_10(num_classes, factor, block=WideBasic, dropout_rate=0.3):
     return WideResNet(depth=28, widen_factor=10, dropout_rate=dropout_rate, num_classes=num_classes, factor=factor, block=block)
+
+def WideResNet_28_12(num_classes, factor, block=WideBasic, dropout_rate=0.3):
+    return WideResNet(depth=28, widen_factor=12, dropout_rate=dropout_rate, num_classes=num_classes, factor=factor, block=block)
+
+def WideResNet_40_10(num_classes, factor, block=WideBasic, dropout_rate=0.3):
+    return WideResNet(depth=40, widen_factor=10, dropout_rate=dropout_rate, num_classes=num_classes, factor=factor, block=block)
