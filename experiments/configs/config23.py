@@ -36,7 +36,7 @@ train_corruptions = np.array([
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
+dataset = 'TinyImageNet' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -50,10 +50,10 @@ elif dataset == 'TinyImageNet':
     pixel_factor = 2
 normalize = False
 validontest = False
-lrschedule = 'CosineAnnealingWarmRestarts'
+lrschedule = 'MultiStepLR'
 learningrate = 0.1
-epochs = 150
-lrparams = {'T_0': 10, 'T_mult': 2}
+epochs = 100
+lrparams = {'milestones': [85, 95], 'gamma': 0.1}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
