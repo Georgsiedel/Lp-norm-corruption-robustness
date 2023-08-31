@@ -11,14 +11,14 @@ if __name__ == '__main__':
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
 
-    for experiment in [67, 66, 2, 3, 4]:#range(2, experiments_number):
+    for experiment in [17, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
         print('Starting experiment #',experiment, 'on', config.dataset, 'dataset')
         runs = 1
 
-        for run in range(0, runs):
+        for run in range(runs):
             print("Training run #",run)
             if not config.combine_train_corruptions:
                 for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
