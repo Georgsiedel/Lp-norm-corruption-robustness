@@ -227,17 +227,6 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         rmsce_c = np.average(np.asarray(rmsce_c_list))
         accs.append(rmsce_c)
         print("Average Robust Accuracy (all 19 corruptions): ",sum(accs[2:21])/19,"%, Average Robust Accuracy (15 corruptions): ",sum(accs[2:17])/15,"%, RMSCE-C: ", rmsce_c)
-
-    if combine_test_corruptions:
-        acc = compute_metric(test_loader, model, test_corruptions, test_corruptions, test_corruptions,
-                             combine_test_corruptions, resize)
-        print(acc, "% Accuracy on combined Lp-norm Test Noise")
-        accs.append(acc)
-    else:
-        for id, (noise_type, test_epsilon, max) in enumerate(test_corruptions):
-            acc = compute_metric(test_loader, model, noise_type, test_epsilon, max, combine_test_corruptions, resize)
-            print(acc, "% Accuracy on random test corupptions of type:", noise_type, test_epsilon, "with maximal-perturbation =", max)
-            accs.append(acc)
     if calculate_adv_distance == True:
         print(f"{adv_distance_params['norm']}-Adversarial Distance calculation using PGD attack with {adv_distance_params['nb_iters']} iterations of "
               f"stepsize {adv_distance_params['eps_iter']}")
@@ -250,4 +239,15 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
 
         adv_acc_aa, mean_dist_aa = adv_eval.compute_adv_acc(autoattack_params, testset, model, workers, batchsize)
         accs = accs + [adv_acc_aa, mean_dist_aa]
+    if combine_test_corruptions:
+        acc = compute_metric(test_loader, model, test_corruptions, test_corruptions, test_corruptions,
+                             combine_test_corruptions, resize)
+        print(acc, "% Accuracy on combined Lp-norm Test Noise")
+        accs.append(acc)
+    else:
+        for id, (noise_type, test_epsilon, max) in enumerate(test_corruptions):
+            acc = compute_metric(test_loader, model, noise_type, test_epsilon, max, combine_test_corruptions, resize)
+            print(acc, "% Accuracy on random test corupptions of type:", noise_type, test_epsilon, "with maximal-perturbation =", max)
+            accs.append(acc)
+
     return accs

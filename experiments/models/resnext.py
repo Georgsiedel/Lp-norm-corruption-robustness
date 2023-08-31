@@ -38,15 +38,16 @@ class Block(nn.Module):
 
 
 class ResNeXt(nn.Module):
-    def __init__(self, num_blocks, cardinality, bottleneck_width, num_classes=10):
+    def __init__(self, num_blocks, cardinality, bottleneck_width, num_classes=10, factor=1):
         super(ResNeXt, self).__init__()
         self.cardinality = cardinality
         self.bottleneck_width = bottleneck_width
         self.in_planes = 64
+        self.factor = factor
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(num_blocks[0], 1)
+        self.layer1 = self._make_layer(num_blocks[0], factor)
         self.layer2 = self._make_layer(num_blocks[1], 2)
         self.layer3 = self._make_layer(num_blocks[2], 2)
         # self.layer4 = self._make_layer(num_blocks[3], 2)
@@ -74,17 +75,17 @@ class ResNeXt(nn.Module):
         return out
 
 
-def ResNeXt29_2x64d():
-    return ResNeXt(num_blocks=[3,3,3], cardinality=2, bottleneck_width=64)
+def ResNeXt29_2x64d(num_classes, factor):
+    return ResNeXt(num_blocks=[3,3,3], cardinality=2, bottleneck_width=64, num_classes=num_classes, factor=factor)
 
-def ResNeXt29_4x64d():
-    return ResNeXt(num_blocks=[3,3,3], cardinality=4, bottleneck_width=64)
+def ResNeXt29_4x64d(num_classes, factor):
+    return ResNeXt(num_blocks=[3,3,3], cardinality=4, bottleneck_width=64, num_classes=num_classes, factor=factor)
 
-def ResNeXt29_8x64d():
-    return ResNeXt(num_blocks=[3,3,3], cardinality=8, bottleneck_width=64)
+def ResNeXt29_8x64d(num_classes, factor):
+    return ResNeXt(num_blocks=[3,3,3], cardinality=8, bottleneck_width=64, num_classes=num_classes, factor=factor)
 
-def ResNeXt29_32x4d():
-    return ResNeXt(num_blocks=[3,3,3], cardinality=32, bottleneck_width=4)
+def ResNeXt29_32x4d(num_classes, factor):
+    return ResNeXt(num_blocks=[3,3,3], cardinality=32, bottleneck_width=4, num_classes=num_classes, factor=factor)
 
 def test_resnext():
     net = ResNeXt29_2x64d()

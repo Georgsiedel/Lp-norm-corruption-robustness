@@ -135,6 +135,9 @@ def train(pbar):
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         optimizer.zero_grad()
+
+        inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
+
         inputs_orig, inputs_pert = copy.deepcopy(inputs), copy.deepcopy(inputs)
 
         for id, img1 in enumerate(inputs):
@@ -157,8 +160,6 @@ def train(pbar):
             inputs = transforms.Resize(224, antialias=True)(inputs)
         if args.normalize == True:
             inputs = normalize(inputs, args.dataset)
-
-        inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
 
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():

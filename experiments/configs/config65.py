@@ -131,13 +131,13 @@ optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 2e-5}
 number_workers = 1
 modeltype = 'WideResNet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.3}
+modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.1}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = True
 lossparams = {'num_splits': 3, 'alpha': 16, 'smoothing': 0.1}
-mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+mixup_alpha = 0.1 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 1.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.1
 

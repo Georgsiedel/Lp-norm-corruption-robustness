@@ -10,7 +10,8 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in [52, 53]:#range(2, experiments_number):
+
+    for experiment in [67, 66, 2, 3, 4]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
