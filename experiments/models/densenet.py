@@ -34,12 +34,13 @@ class Transition(nn.Module):
 
 
 class DenseNet(nn.Module):
-    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_classes=10):
+    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_classes=10, factor=1):
         super(DenseNet, self).__init__()
         self.growth_rate = growth_rate
+        self.factor = factor
 
         num_planes = 2*growth_rate
-        self.conv1 = nn.Conv2d(3, num_planes, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, num_planes, kernel_size=3, padding=1, bias=False, stride=factor)
 
         self.dense1 = self._make_dense_layers(block, num_planes, nblocks[0])
         num_planes += nblocks[0]*growth_rate
@@ -83,23 +84,23 @@ class DenseNet(nn.Module):
         out = self.linear(out)
         return out
 
-def DenseNet121_32():
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32)
+def DenseNet121_32(num_classes, factor):
+    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32, num_classes=num_classes, factor=factor)
 
-def DenseNet169_32():
-    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32)
+def DenseNet169_32(num_classes, factor):
+    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32, num_classes=num_classes, factor=factor)
 
-def DenseNet201_32():
-    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32)
+def DenseNet201_32(num_classes, factor):
+    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32, num_classes=num_classes, factor=factor)
 
-def DenseNet161_48():
-    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=48)
+def DenseNet161_48(num_classes, factor):
+    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=48, num_classes=num_classes, factor=factor)
 
-def DenseNet121_12():
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=12)
+def DenseNet121_12(num_classes, factor):
+    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=12, num_classes=num_classes, factor=factor)
 
-def DenseNet201_12():
-    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=12)
+def DenseNet201_12(num_classes, factor):
+    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=12, num_classes=num_classes, factor=factor)
 
 def test():
     net = DenseNet121_12()
