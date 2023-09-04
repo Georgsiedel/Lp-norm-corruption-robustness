@@ -106,7 +106,7 @@ train_corruptions = np.array([
 ])
 
 batchsize = 384
-dataset = 'CIFAR100' #ImageNet #CIFAR100 #TinyImageNet
+dataset = 'CIFAR10' #ImageNet #CIFAR100
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -136,7 +136,7 @@ resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = True
-lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.1}
+lossparams = {'num_splits': 3, 'alpha': 16, 'smoothing': 0.1}
 mixup_alpha = 0.1 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 1.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.1
@@ -148,8 +148,6 @@ if combine_train_corruptions:
     model_count = 1
 else:
     model_count = train_corruptions.shape[0]
-
-
 
 #define train and test corruptions:
 #define noise type (first column): 'gaussian', 'uniform-l0-impulse', 'uniform-l0-salt-pepper', 'uniform-linf'. also: all positive numbers p>0 for uniform Lp possible: 'uniform-l1', 'uniform-l2', ...
@@ -267,7 +265,7 @@ autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
 test_count = 2
 if test_on_c:
-    test_count += 22
+    test_count += 20
 if combine_test_corruptions:
     test_count += 1
 else:
