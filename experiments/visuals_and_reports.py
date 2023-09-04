@@ -18,6 +18,8 @@ def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_co
     if test_on_c == True:
         test_corruptions_label = np.loadtxt('./experiments/data/c-labels.txt', dtype=list)
         test_corruptions_string = np.append(test_corruptions_string, test_corruptions_label, axis=0)
+        test_corruptions_string = np.append(test_corruptions_string, ['mCE-19'], axis=0)
+        test_corruptions_string = np.append(test_corruptions_string, ['mCE-15'], axis=0)
         test_corruptions_string = np.append(test_corruptions_string, ['RMSCE_C'], axis=0)
     if calculate_adv_distance == True:
         test_corruptions_string = np.append(test_corruptions_string, ['Acc_from_PGD_adv_distance_calculation',
