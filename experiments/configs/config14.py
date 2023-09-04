@@ -35,7 +35,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.12, True]
 ])
 
-batchsize = 384
+batchsize = 256
 dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
@@ -48,7 +48,7 @@ elif dataset == 'ImageNet':
 elif dataset == 'TinyImageNet':
     num_classes = 200
     pixel_factor = 2
-normalize = True
+normalize = False
 validontest = True
 lrschedule = 'CosineAnnealingWarmRestarts'
 learningrate = 0.1

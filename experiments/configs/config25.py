@@ -35,7 +35,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.12, True]
 ])
 
-batchsize = 32
+batchsize = 256
 dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
@@ -49,19 +49,19 @@ elif dataset == 'TinyImageNet':
     num_classes = 200
     pixel_factor = 2
 normalize = False
-validontest = False
+validontest = True
 lrschedule = 'MultiStepLR'
-learningrate = 0.01
-epochs = 100
-lrparams = {'milestones': [85, 95], 'gamma': 0.2}
+learningrate = 0.1
+epochs = 150
+lrparams = {'milestones': [110, 135, 145], 'gamma': 0.2}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'WideResNet'
-modelparams = {'depth': 28, 'widen_factor': 10, 'dropout_rate': 0.3}
+modeltype = 'WideResNet_28_10'
+modelparams = {'dropout_rate': 0.3}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
