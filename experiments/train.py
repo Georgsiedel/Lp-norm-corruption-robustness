@@ -194,34 +194,35 @@ def train(pbar):
     return train_acc, avg_train_loss
 
 def valid(pbar):
-    model.eval()
-    test_loss, correct, total, avg_test_loss = 0, 0, 0, 0
+    with torch.no_grad():
+        model.eval()
+        test_loss, correct, total, avg_test_loss = 0, 0, 0, 0
 
-    for batch_idx, (inputs, targets) in enumerate(validationloader):
+        for batch_idx, (inputs, targets) in enumerate(validationloader):
 
-        if args.resize == True:
-            inputs = transforms.Resize(224, antialias=True)(inputs)
-        if args.normalize == True:
-            inputs = normalize(inputs, args.dataset)
-        inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
-        targets_pert = targets
+            if args.resize == True:
+                inputs = transforms.Resize(224, antialias=True)(inputs)
+            if args.normalize == True:
+                inputs = normalize(inputs, args.dataset)
+            inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
+            targets_pert = targets
 
-        with torch.cuda.amp.autocast():
-            targets_pert_pred = model(inputs)
-            loss = crossentropy(targets_pert_pred, targets_pert)
+            with torch.cuda.amp.autocast():
+                targets_pert_pred = model(inputs)
+                loss = crossentropy(targets_pert_pred, targets_pert)
 
-        test_loss += loss.item()
-        _, predicted = targets_pert_pred.max(1)
-        total += targets_pert.size(0)
-        correct += predicted.eq(targets_pert).sum().item()
-        avg_test_loss = test_loss / (batch_idx + 1)
-        pbar.set_description(
-            '[Valid] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(avg_test_loss, 100. * correct / total,
-                                                                correct, total))
-        pbar.update(1)
+            test_loss += loss.item()
+            _, predicted = targets_pert_pred.max(1)
+            total += targets_pert.size(0)
+            correct += predicted.eq(targets_pert).sum().item()
+            avg_test_loss = test_loss / (batch_idx + 1)
+            pbar.set_description(
+                '[Valid] Loss: {:.3f} | Acc: {:.3f} ({}/{})'.format(avg_test_loss, 100. * correct / total,
+                                                                    correct, total))
+            pbar.update(1)
 
-    acc = 100. * correct / total
-    return acc, avg_test_loss
+        acc = 100. * correct / total
+        return acc, avg_test_loss
 
 def load_data(transform_train, transform_valid, dataset, validontest):
     if dataset == 'ImageNet' or dataset == 'TinyImageNet':
