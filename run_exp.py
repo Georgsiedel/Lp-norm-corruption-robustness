@@ -10,8 +10,8 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
+    for experiment in [5]:#range(2, experiments_number):
 
-    for experiment in [17, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
@@ -69,7 +69,7 @@ if __name__ == '__main__':
             test_metrics = np.empty([config.test_count, config.model_count])
 
             if config.combine_train_corruptions:
-                print("Corruption training of combined type")
+                print("Evaluating model of combined type")
                 filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
                            f'{config.lrschedule}_combined_run_{run}.pth'
                 test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
@@ -80,7 +80,7 @@ if __name__ == '__main__':
                 print(test_metric_col)
             else:
                 for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
-                    print("Separate corruption training of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
+                    print("Evaluating model trained on corruption of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
                     filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
                                f'{config.lrschedule}_separate_{noise_type}_eps_{train_epsilon}_{max}_run_{run}.pth'
                     test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,

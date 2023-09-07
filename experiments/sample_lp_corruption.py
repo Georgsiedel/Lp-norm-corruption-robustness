@@ -102,5 +102,5 @@ def sample_lp_corr_img(n_images = 3, seed = -1, noise_type = 'uniform-linf', eps
     return fig
 
 if __name__ == '__main__':
-    fig = sample_lp_corr_img(3, -1, 'uniform-l1', 100, "max", "TinyImageNet")
+    fig = sample_lp_corr_img(3, -1, 'uniform-linf', 0.01, "max", "TinyImageNet")
     plt.show()

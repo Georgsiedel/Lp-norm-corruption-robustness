@@ -58,7 +58,7 @@ def compute_clean(loader, net, resize, num_classes):
         net.eval()
         correct = 0
         total = 0
-        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=15, norm='l2')
+        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=100, norm='l2')
         all_targets = torch.empty(0)
         all_targets_pred = torch.empty((0, num_classes))
         all_targets, all_targets_pred = all_targets.to(device), all_targets_pred.to(device)
@@ -87,7 +87,7 @@ def compute_metric_imagenet_c(loader_c, net, num_classes):
         net.eval()
         correct = 0
         total = 0
-        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=15, norm='l2')
+        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=100, norm='l2')
         all_targets = torch.empty(0)
         all_targets_pred = torch.empty((0, num_classes))
         all_targets, all_targets_pred = all_targets.to(device), all_targets_pred.to(device)
@@ -113,7 +113,7 @@ def compute_metric_cifar_c(loader, loader_c, net, batchsize, num_classes):
         net.eval()
         correct = 0
         total = 0
-        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=15, norm='l2')
+        calibration_metric = MulticlassCalibrationError(num_classes=num_classes, n_bins=100, norm='l2')
         all_targets = torch.empty(0)
         all_targets_pred = torch.empty((0, num_classes))
         all_targets, all_targets_pred = all_targets.to(device), all_targets_pred.to(device)
