@@ -35,7 +35,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.12, True]
 ])
 
-batchsize = 192
+batchsize = 256
 dataset = 'CIFAR10' #ImageNet #CIFAR100 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
@@ -60,7 +60,7 @@ earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'ResNeXt29_8x64d'
+modeltype = 'ResNeXt29_32x4d'
 modelparams = {}
 resize = False
 aug_strat_check = True
