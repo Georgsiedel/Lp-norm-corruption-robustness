@@ -18,7 +18,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.01, True],
 ['uniform-l0-impulse', 0.03, True],
 ['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.03, False]
+['uniform-l0-impulse', 0.03, False],
 ])
 
 batchsize = 384
@@ -36,18 +36,18 @@ elif dataset == 'TinyImageNet':
     pixel_factor = 2
 normalize = False
 validontest = True
-lrschedule = 'CosineAnnealingWarmRestarts'
+lrschedule = 'CosineAnnealingLR'
 learningrate = 0.1
-epochs = 150
-lrparams = {'T_0': 10, 'T_mult': 2}
+epochs = 100
+lrparams = {'T_max': epochs}
 warmupepochs = 0
 earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'WideResNet_28_4'
-modelparams = {'dropout_rate': 0.3}
+modeltype = 'ResNeXt29_32x4d'
+modelparams = {}
 resize = False
 aug_strat_check = False
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix

@@ -2,27 +2,41 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
+#['standard', 0.0, False],
+['uniform-linf', 0.005, False],
+['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
+['uniform-linf', 0.03, False],
 ['uniform-linf', 0.04, False],
-['uniform-l0.5', 100000.0, False],
-['uniform-l0.5', 200000.0, False],
-['uniform-l1', 50.0, False],
-['uniform-l1', 100.0, False],
+['uniform-linf', 0.06, False],
+['uniform-linf', 0.08, False],
+['uniform-linf', 0.1, False],
+['uniform-linf', 0.12, False],
+['uniform-linf', 0.14, False],
+['uniform-l2', 0.25, False],
+['uniform-l2', 0.5, False],
+['uniform-l2', 0.75, False],
 ['uniform-l2', 1.0, False],
+['uniform-l2', 1.5, False],
 ['uniform-l2', 2.0, False],
-['uniform-l10', 0.12, False],
-['uniform-l10', 0.24, False],
-['uniform-l200', 0.1, False],
-['uniform-l200', 0.2, False],
+['uniform-l2', 2.5, False],
+['uniform-l2', 3.0, False],
+['uniform-l2', 3.5, False],
+['uniform-l2', 4.0, False],
+['uniform-l0-impulse', 0.005, True],
 ['uniform-l0-impulse', 0.01, True],
+['uniform-l0-impulse', 0.015, True],
+['uniform-l0-impulse', 0.02, True],
 ['uniform-l0-impulse', 0.03, True],
-['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.03, False]
+['uniform-l0-impulse', 0.04, True],
+['uniform-l0-impulse', 0.06, True],
+['uniform-l0-impulse', 0.08, True],
+['uniform-l0-impulse', 0.1, True],
+['uniform-l0-impulse', 0.12, True]
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -53,11 +67,11 @@ aug_strat_check = False
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
-mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 
-combine_train_corruptions = False #augment the train dataset with all corruptions
+combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:

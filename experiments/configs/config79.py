@@ -18,11 +18,11 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.01, True],
 ['uniform-l0-impulse', 0.03, True],
 ['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.03, False]
+['uniform-l0-impulse', 0.03, False],
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1

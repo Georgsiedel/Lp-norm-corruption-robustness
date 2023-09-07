@@ -315,13 +315,18 @@ if __name__ == '__main__':
                     scheduler.step()
 
                 checkpoints.save_model(epoch, model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
-                early_stopper(valid_loss, model)
+                early_stopper(valid_acc, model)
+                if early_stopper.best_model == True:
+                    checkpoints.save_model(epoch, model, optimizer, scheduler,
+                                           path='experiments/trained_models/best_checkpoint.pt')
                 if args.earlystop and early_stopper.early_stop:
                     print("Early stopping")
                     end_epoch = epoch
                     break
 
     # Save final model
+    end_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler,
+                                                                    path='experiments/trained_models/best_checkpoint.pt')
     checkpoints.save_model(end_epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
                                                     f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
                                                     f'{training_folder}{filename_spec}run_{args.run}.pth')
