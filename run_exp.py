@@ -11,7 +11,7 @@ if __name__ == '__main__':
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
 
-    for experiment in [21, 22, 23, 24]:#range(2, experiments_number):
+    for experiment in [24, 21, 22, 23, 24]:#range(2, experiments_number):
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
