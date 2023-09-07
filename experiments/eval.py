@@ -93,8 +93,6 @@ def compute_metric_imagenet_c(loader_c, net, num_classes):
         all_targets, all_targets_pred = all_targets.to(device), all_targets_pred.to(device)
 
         for batch_idx, (inputs, targets) in enumerate(loader_c):
-            inputs = inputs / 255
-
             inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
             with torch.cuda.amp.autocast():
                 targets_pred = net(inputs)
@@ -163,7 +161,7 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         load_helper = getattr(datasets, dataset)
         testset = load_helper("./experiments/data", train=False, download=True, transform=test_transforms)
         test_loader = DataLoader(testset, batch_size=batchsize, shuffle =False,
-                                 pin_memory=True, num_workers=0)
+                                 pin_memory=True, num_workers=workers)
     num_classes = len(testset.classes)
 
     #Load model
@@ -211,7 +209,7 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
                 acc_intensities = []
 
                 for intensity in range(1, 6):
-                    load_c = datasets.ImageFolder(root=f'./experiments/data/{dataset}-c/'+corruption+'/'+str(intensity),
+                    load_c = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}-c/'+corruption+'/'+str(intensity),
                                     transform=test_transforms)
                     test_loader_c = DataLoader(load_c, batch_size=batchsize, shuffle=False)
                     acc, rmsce_c = compute_metric_imagenet_c(test_loader_c, model, num_classes)
@@ -225,8 +223,11 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
             print('No corrupted benchmark available other than CIFAR10-c, CIFAR100-c, TinyImageNet-c and ImageNet-c.')
 
         rmsce_c = np.average(np.asarray(rmsce_c_list))
-        accs.append(rmsce_c)
         print("Average Robust Accuracy (all 19 corruptions): ",sum(accs[2:21])/19,"%, Average Robust Accuracy (15 corruptions): ",sum(accs[2:17])/15,"%, RMSCE-C: ", rmsce_c)
+        accs.append(sum(accs[2:21])/19)
+        accs.append(sum(accs[2:17])/15)
+        accs.append(rmsce_c)
+
     if calculate_adv_distance == True:
         print(f"{adv_distance_params['norm']}-Adversarial Distance calculation using PGD attack with {adv_distance_params['nb_iters']} iterations of "
               f"stepsize {adv_distance_params['eps_iter']}")
