@@ -10,27 +10,28 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in [5]:#range(2, experiments_number):
+    for experiment in [1]:#range(2, experiments_number):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
         print('Starting experiment #',experiment, 'on', config.dataset, 'dataset')
         runs = 1
+        resume = False
 
         for run in range(runs):
             print("Training run #",run)
             if not config.combine_train_corruptions:
                 for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
                     print("Separate corruption training: ", noise_type, train_epsilon, 'and max-training:', max)
-                    cmd0 = "python experiments/train.py --noise={} --epsilon={} --max={} --run={} --experiment={} " \
+                    cmd0 = "python experiments/train.py --resume={} --noise={} --epsilon={} --max={} --run={} --experiment={} " \
                            "--epochs={} --learningrate={} --dataset={} --validontest={} --lrschedule={} --lrparams=\"{}\" " \
                            "--earlystop={} --earlystopPatience={} --optimizer={} --optimizerparams=\"{}\" --modeltype={} " \
                            "--modelparams=\"{}\" --resize={} --aug_strat_check={} --train_aug_strat={} --jsd_loss={} " \
                            "--mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} --concurrent_combinations={} " \
                            "--batchsize={} --number_workers={} --lossparams=\"{}\" --RandomEraseProbability={} " \
                            "--warmupepochs={} --normalize={} --num_classes={} --pixel_factor={}"\
-                        .format(noise_type, train_epsilon, max, run, experiment, config.epochs, config.learningrate,
+                        .format(resume, noise_type, train_epsilon, max, run, experiment, config.epochs, config.learningrate,
                                 config.dataset, config.validontest, config.lrschedule, config.lrparams, config.earlystop,
                                 config.earlystopPatience, config.optimizer, config.optimizerparams, config.modeltype,
                                 config.modelparams, config.resize, config.aug_strat_check, config.train_aug_strat,
@@ -42,13 +43,13 @@ if __name__ == '__main__':
 
             if config.combine_train_corruptions:
                 print('Combined training')
-                cmd0 = "python experiments/train.py --run={} --experiment={} --epochs={} --learningrate={} --dataset={} " \
+                cmd0 = "python experiments/train.py --resume={} --run={} --experiment={} --epochs={} --learningrate={} --dataset={} " \
                        "--validontest={} --lrschedule={} --lrparams=\"{}\" --earlystop={} --earlystopPatience={} --optimizer={} " \
                        "--optimizerparams=\"{}\" --modeltype={} --modelparams=\"{}\" --resize={} --aug_strat_check={} " \
                        "--train_aug_strat={} --jsd_loss={} --mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} " \
                        "--concurrent_combinations={} --batchsize={} --number_workers={} --lossparams=\"{}\" " \
                        "--RandomEraseProbability={} --warmupepochs={} --normalize={} --num_classes={} --pixel_factor={}"\
-                    .format(run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
+                    .format(resume, run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
                             config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience,
                             config.optimizer, config.optimizerparams, config.modeltype, config.modelparams, config.resize,
                             config.aug_strat_check, config.train_aug_strat, config.jsd_loss, config.mixup_alpha,

@@ -133,11 +133,11 @@ number_workers = 1
 modeltype = 'DenseNet201_12'
 modelparams = {}
 resize = False
-aug_strat_check = True
-train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+aug_strat_check = False
+train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
-mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
+mixup_alpha = 0.2 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 

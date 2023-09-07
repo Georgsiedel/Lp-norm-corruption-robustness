@@ -106,7 +106,7 @@ train_corruptions = np.array([
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -130,8 +130,8 @@ earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'DenseNet201_12'
-modelparams = {}
+modeltype = 'WideResNet_28_4'
+modelparams = {'dropout_rate': 0.3}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix

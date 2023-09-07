@@ -3,10 +3,11 @@ import torchvision.models.mobilenet
 
 train_corruptions = np.array([
 ['standard', 0.0, False],
+['uniform-l0-impulse', 0.01, True]
 ])
 
 batchsize = 384
-dataset = 'TinyImageNet' #ImageNet #CIFAR100 #TinyImageNet
+dataset = 'CIFAR10' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -30,7 +31,7 @@ earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'ResNeXt29_32x4d'
+modeltype = 'DenseNet201_12'
 modelparams = {}
 resize = False
 aug_strat_check = True
@@ -41,7 +42,7 @@ mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 
-combine_train_corruptions = True #augment the train dataset with all corruptions
+combine_train_corruptions = False #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:
@@ -49,14 +50,13 @@ if combine_train_corruptions:
 else:
     model_count = train_corruptions.shape[0]
 
-
-
 #define train and test corruptions:
 #define noise type (first column): 'gaussian', 'uniform-l0-impulse', 'uniform-l0-salt-pepper', 'uniform-linf'. also: all positive numbers p>0 for uniform Lp possible: 'uniform-l1', 'uniform-l2', ...
 #define intensity (second column): max.-distance of random perturbations for model training and evaluation (gaussian: std-dev; l0: proportion of pixels corrupted; lp: epsilon)
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
 ['standard', 0.0, False],
+['uniform-linf', 0.005, False],
 ['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
@@ -66,7 +66,6 @@ test_corruptions = np.array([
 ['uniform-linf', 0.1, False],
 ['uniform-linf', 0.12, False],
 ['uniform-linf', 0.14, False],
-['uniform-linf', 0.16, False],
 ['uniform-l0.5', 25000.0, False],
 ['uniform-l0.5', 50000.0, False],
 ['uniform-l0.5', 75000.0, False],
@@ -167,7 +166,7 @@ autoattack_params = {'setsize': 1000, 'epsilon': 8/255, 'norm': 'Linf'}
 
 test_count = 2
 if test_on_c:
-    test_count += 20
+    test_count += 22
 if combine_test_corruptions:
     test_count += 1
 else:

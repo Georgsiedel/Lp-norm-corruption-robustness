@@ -106,7 +106,7 @@ train_corruptions = np.array([
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -130,11 +130,11 @@ earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'DenseNet201_12'
+modeltype = 'ResNeXt29_32x4d'
 modelparams = {}
 resize = False
-aug_strat_check = True
-train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+aug_strat_check = False
+train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
 mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance

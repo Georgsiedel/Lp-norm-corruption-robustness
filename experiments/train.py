@@ -49,7 +49,8 @@ class str2dictAction(argparse.Action):
         setattr(namespace, self.dest, dictionary)
 
 parser = argparse.ArgumentParser(description='PyTorch Training with perturbations')
-parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+parser.add_argument('--resume', type=str2bool, nargs='?', const=False, default=False,
+                    help='resuming from saved checkpoint in fixed-path repo defined below')
 parser.add_argument('--noise', default='standard', type=str, help='type of noise')
 parser.add_argument('--epsilon', default=0.0, type=float, help='perturbation radius')
 parser.add_argument('--run', default=0, type=int, help='run number')
@@ -288,19 +289,19 @@ if __name__ == '__main__':
     total_steps = calculate_steps()
     train_accs, train_losses, valid_accs, valid_losses = [], [], [], []
     training_folder = 'combined' if args.combine_train_corruptions == True else 'separate'
-    filename_spec = str(f"_{args.noise_type}_eps_{args.train_epsilon}_{args.max}_" if
+    filename_spec = str(f"_{args.noise}_eps_{args.epsilon}_{args.max}_" if
                         args.combine_train_corruptions == False else f"_")
     start_epoch, end_epoch = 0, args.epochs
 
     # Resume from checkpoint
-    if args.resume:
+    if args.resume == True:
         print('\nResuming from checkpoint..')
         start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
 
     # Training loop
     with tqdm(total=total_steps) as pbar:
         with torch.autograd.set_detect_anomaly(False, check_nan=False): #this may resolve some Cuda/cuDNN errors.
-            # check_nan=True increases 32bit precision train time by ~20% and causes errors due to nan values for mixep precision training.
+            # check_nan=True increases 32bit precision train time by ~20% and causes errors due to nan values for mixed precision training.
             for epoch in range(start_epoch, end_epoch):
                 train_acc, train_loss = train(pbar)
                 valid_acc, valid_loss = valid(pbar)
