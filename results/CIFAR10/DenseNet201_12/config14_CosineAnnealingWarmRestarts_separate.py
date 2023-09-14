@@ -2,19 +2,19 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-#['standard', 0.0, False],
-#['uniform-linf', 0.02, False],
-#['uniform-linf', 0.04, False],
-#['uniform-l0.5', 100000.0, False],
-#['uniform-l0.5', 200000.0, False],
+['standard', 0.0, False],
+['uniform-linf', 0.02, False],
+['uniform-linf', 0.04, False],
+['uniform-l0.5', 100000.0, False],
+['uniform-l0.5', 200000.0, False],
 ['uniform-l1', 50.0, False],
-#['uniform-l1', 100.0, False],
-#['uniform-l2', 1.0, False],
-##['uniform-l2', 2.0, False],
-#['uniform-l10', 0.12, False],
-#['uniform-l10', 0.24, False],
-#['uniform-l200', 0.1, False],
-#['uniform-l200', 0.2, False],
+['uniform-l1', 100.0, False],
+['uniform-l2', 1.0, False],
+['uniform-l2', 2.0, False],
+['uniform-l10', 0.12, False],
+['uniform-l10', 0.24, False],
+['uniform-l200', 0.1, False],
+['uniform-l200', 0.2, False],
 ['uniform-l0-impulse', 0.01, True],
 ['uniform-l0-impulse', 0.03, True],
 ['uniform-l0-impulse', 0.01, False],
@@ -48,8 +48,8 @@ earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 1
-modeltype = 'WideResNet_28_4'
-modelparams = {'dropout_rate': 0.3}
+modeltype = 'DenseNet201_12'
+modelparams = {}
 resize = False
 aug_strat_check = False
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
