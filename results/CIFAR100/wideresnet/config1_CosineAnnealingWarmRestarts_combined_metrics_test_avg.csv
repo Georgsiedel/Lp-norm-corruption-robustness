@@ -1,7 +1,7 @@
-;config_model;;
-Standard_Acc;82,85;;
+;config_model;CIFAR100-C (19);CIFAR100-C (15)
+Standard_Acc;82,85;73,6363157895;72,7756
 RMSCE;0,2643;;
-gaussian_noise;76,67;73,6363157895;72,7756
+gaussian_noise;76,67;;
 shot_noise;78,21;;
 impulse_noise;82,486;;
 defocus_blur;77,37;;
