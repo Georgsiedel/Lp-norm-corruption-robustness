@@ -1,7 +1,7 @@
-;config_model;;
-Standard_Acc;97,12;;
+;config_model;CIFAR-10-C (19);CIFAR-10-C (15)
+Standard_Acc;97,12;93,3210526316;92,9196
 RMSCE;0,1884;;
-gaussian_noise;94,26;93,3210526316;92,9196
+gaussian_noise;94,26;;
 shot_noise;94,944;;
 speckle_noise;94,92;;
 impulse_noise;96,702;;
