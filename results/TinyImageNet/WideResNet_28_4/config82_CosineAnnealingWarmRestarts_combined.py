@@ -2,25 +2,7 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-#['standard', 0.0, False],
-#['uniform-linf', 0.04, False],
-#['uniform-linf', 0.08, False],
-#['uniform-l0.5', 2000000.0, False],
-#['uniform-l0.5', 4000000.0, False],
-#['uniform-l1', 200.0, False],
-#['uniform-l1', 500.0, False],
-#['uniform-l2', 2.0, False],
-#['uniform-l2', 5.0, False],
-#['uniform-l10', 0.2, False],
-#['uniform-l10', 0.4, False],
-#['uniform-l200', 0.15, False],
-#['uniform-l200', 0.3, False],
-#['uniform-l0-impulse', 0.02, True],
-['uniform-l0-impulse', 0.05, True],
-['uniform-l0-impulse', 0.02, False],
-['uniform-l0-impulse', 0.05, False],
-['gaussian', 0.02, False],
-['gaussian', 0.04, False],
+['standard', 0.0, False]
 ])
 
 batchsize = 384
@@ -51,15 +33,15 @@ number_workers = 1
 modeltype = 'WideResNet_28_4'
 modelparams = {'dropout_rate': 0.3}
 resize = False
-aug_strat_check = False
-train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+aug_strat_check = True
+train_aug_strat = 'RandAugment' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
 mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 
-combine_train_corruptions = False #augment the train dataset with all corruptions
+combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:
@@ -73,16 +55,6 @@ else:
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
 ['standard', 0.0, False],
-['gaussian', 0.005, False],
-['gaussian', 0.01, False],
-['gaussian', 0.02, False],
-['gaussian', 0.03, False],
-['gaussian', 0.04, False],
-['gaussian', 0.05, False],
-['gaussian', 0.06, False],
-['gaussian', 0.08, False],
-['gaussian', 0.1, False],
-['gaussian', 0.15, False],
 ['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
