@@ -257,7 +257,7 @@ def load_data(transform_train, transform_valid, dataset, validontest):
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-    transform_train, transform_valid = create_transforms(args.dataset, args.RandomEraseProbability)
+    transform_train, transform_valid = create_transforms(args.dataset, args.train_aug_strat, args.RandomEraseProbability)
     trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest)
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None, num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)

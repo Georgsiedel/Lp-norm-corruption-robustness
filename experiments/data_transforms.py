@@ -238,7 +238,7 @@ def apply_lp_corruption(batch, combine_train_corruptions, train_corruptions, con
             batch = sample_lp_corr_batch(noise, epsilon, batch, False)
     return batch
 
-def create_transforms(dataset, RandomEraseProbability):
+def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
     # list of all data transformations used
     t = transforms.ToTensor()
     c32 = transforms.RandomCrop(32, padding=4)
@@ -248,6 +248,7 @@ def create_transforms(dataset, RandomEraseProbability):
     c224 = transforms.CenterCrop(224)
     rrc224 = transforms.RandomResizedCrop(224, antialias=True)
     re = transforms.RandomErasing(p=RandomEraseProbability)
+    #tf = getattr(transforms, train_aug_strat)
 
     # transformations of validation set
     transforms_valid = transforms.Compose([t])
