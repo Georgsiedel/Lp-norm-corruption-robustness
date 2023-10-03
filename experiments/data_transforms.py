@@ -12,7 +12,8 @@ from typing import Tuple
 from torch import Tensor
 from torchvision.transforms import functional as F
 
-from experiments.sample_lp_corruption import sample_lp_corr
+from experiments.sample_lp_corruption import sample_lp_corr_img
+from experiments.sample_lp_corruption import sample_lp_corr_batch
 
 class RandomMixup(torch.nn.Module):
     """Randomly apply Mixup to the provided batch and targets.
@@ -212,32 +213,32 @@ def normalize(inputs, dataset):
         print('no normalization values set for this dataset')
     return inputs
 
-def apply_augstrat(img, train_aug_strat):
-    img = img * 255.0
-    img = torch.clip(img, 0.0, 255.0)
-    img = img.type(torch.uint8)
+def apply_augstrat(batch, train_aug_strat):
+    batch = batch * 255.0
+    batch = torch.clip(batch, 0.0, 255.0)
+    batch = batch.type(torch.uint8)
     tf = getattr(transforms, train_aug_strat)
-    img = tf()(img)
-    img = img.type(torch.float32) / 255.0
-    return img
+    batch = tf()(batch)
+    batch = batch.type(torch.float32) / 255.0
+    return batch
 
-def apply_lp_corruption(img, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
+def apply_lp_corruption(batch, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
     if combine_train_corruptions == True:
         corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
         for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
             train_epsilon = float(train_epsilon)
-            if max == 'True':
-                img = sample_lp_corr(noise_type, train_epsilon, img, 'other')
+            if max == True:
+                batch = sample_lp_corr_batch(noise_type, train_epsilon, batch, True)
             else:
-                img = sample_lp_corr(noise_type, train_epsilon, img, 'max')
+                batch = sample_lp_corr_batch(noise_type, train_epsilon, batch, False)
     else:
-        if max == 'True':
-            img = sample_lp_corr(noise, epsilon, img, 'other')
+        if max == True:
+            batch = sample_lp_corr_batch(noise, epsilon, batch, True)
         else:
-            img = sample_lp_corr(noise, epsilon, img, 'max')
-    return img
+            batch = sample_lp_corr_batch(noise, epsilon, batch, False)
+    return batch
 
-def create_transforms(dataset, RandomEraseProbability):
+def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
     # list of all data transformations used
     t = transforms.ToTensor()
     c32 = transforms.RandomCrop(32, padding=4)
@@ -247,6 +248,7 @@ def create_transforms(dataset, RandomEraseProbability):
     c224 = transforms.CenterCrop(224)
     rrc224 = transforms.RandomResizedCrop(224, antialias=True)
     re = transforms.RandomErasing(p=RandomEraseProbability)
+    #tf = getattr(transforms, train_aug_strat)
 
     # transformations of validation set
     transforms_valid = transforms.Compose([t])

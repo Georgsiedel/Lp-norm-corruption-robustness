@@ -11,7 +11,7 @@ from torchmetrics.classification import MulticlassCalibrationError
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 import experiments.models as low_dim_models
-from experiments.sample_lp_corruption import sample_lp_corr
+from experiments.sample_lp_corruption import sample_lp_corr_img
 from experiments.normalized_model_wrapper import create_normalized_model_wrapper
 import experiments.adversarial_eval as adv_eval
 
@@ -23,21 +23,21 @@ def compute_metric(loader, net, noise_type, epsilon, max, combine, resize):
         for batch_idx, (inputs, targets) in enumerate(loader):
             inputs_pert = inputs
             if combine == True:
-                corruptions = noise_type #this is just a helper
+                corruptions = noise_type #this is a helper
                 for id, img in enumerate(inputs):
                     (n, e, m) = random.choice(corruptions)
                     e = float(e)
-                    if m == 'True':
-                        inputs_pert[id] = sample_lp_corr(n, e, img, 'max')
+                    if m == True:
+                        inputs_pert[id] = sample_lp_corr_img(n, e, img, True)
                     else:
-                        inputs_pert[id] = sample_lp_corr(n, e, img, 'other')
+                        inputs_pert[id] = sample_lp_corr_img(n, e, img, False)
             else:
                 for id, img in enumerate(inputs):
                     epsilon = float(epsilon)
-                    if max == 'True':
-                        inputs_pert[id] = sample_lp_corr(noise_type, epsilon, img, 'max')
+                    if max == True:
+                        inputs_pert[id] = sample_lp_corr_img(noise_type, epsilon, img, True)
                     else:
-                        inputs_pert[id] = sample_lp_corr(noise_type, epsilon, img, 'other')
+                        inputs_pert[id] = sample_lp_corr_img(noise_type, epsilon, img, False)
             if resize == True:
                 inputs_pert = transforms.Resize(224, antialias=True)(inputs_pert)
 

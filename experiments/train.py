@@ -141,19 +141,17 @@ def train(pbar):
 
         inputs_orig, inputs_pert = copy.deepcopy(inputs), copy.deepcopy(inputs)
 
-        for id, img1 in enumerate(inputs):
-            if args.jsd_loss == True:
-                img2 = copy.deepcopy(img1)
-            if args.aug_strat_check == True:
-                img1 = apply_augstrat(img1, args.train_aug_strat)
-                if args.jsd_loss == True:
-                    img2 = apply_augstrat(img2, args.train_aug_strat)
+        if args.aug_strat_check == True:
+            inputs = apply_augstrat(inputs, args.train_aug_strat)
 
-            inputs[id] = apply_lp_corruption(img1, args.combine_train_corruptions, config.train_corruptions,
-                                             args.concurrent_combinations, args.max, args.noise, args.epsilon)
-            if args.jsd_loss == True:
-                inputs_pert[id] = apply_lp_corruption(img2, args.combine_train_corruptions, config.train_corruptions,
-                                                      args.concurrent_combinations, args.max, args.noise, args.epsilon)
+        inputs = apply_lp_corruption(inputs, args.combine_train_corruptions, config.train_corruptions,
+                                         args.concurrent_combinations, args.max, args.noise, args.epsilon)
+
+        if args.jsd_loss == True:
+            if args.aug_strat_check == True:
+                inputs_pert = apply_augstrat(inputs_pert, args.train_aug_strat)
+            inputs_pert = apply_lp_corruption(inputs_pert, args.combine_train_corruptions, config.train_corruptions,
+                                                  args.concurrent_combinations, args.max, args.noise, args.epsilon)
 
         if args.jsd_loss == True:
             inputs = torch.cat((inputs_orig, inputs, inputs_pert), 0)
@@ -259,7 +257,7 @@ def load_data(transform_train, transform_valid, dataset, validontest):
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-    transform_train, transform_valid = create_transforms(args.dataset, args.RandomEraseProbability)
+    transform_train, transform_valid = create_transforms(args.dataset, args.train_aug_strat, args.RandomEraseProbability)
     trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest)
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None, num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
