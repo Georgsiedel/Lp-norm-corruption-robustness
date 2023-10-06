@@ -151,7 +151,7 @@ def sample_lp_corr_visualization(n_images = 3, seed = -1, noise_type = 'uniform-
                 break
         image = torch.squeeze(image)
         corrupted_image = torch.squeeze(corrupted_image)
-        img_corr = sample_lp_corr(noise_type, epsilon, corrupted_image, density_distribution)
+        img_corr = sample_lp_corr_img(noise_type, epsilon, corrupted_image, density_distribution)
         corrupted_image = corrupted_image + img_corr  # construct corrupted image by adding sampled noise
         corrupted_image = np.clip(corrupted_image, 0, 1)  # clip values below 0 and over 1
         image = image.permute(1, 2, 0)

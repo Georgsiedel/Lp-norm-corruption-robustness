@@ -2,29 +2,61 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
+#['standard', 0.0, False],
+['uniform-linf', 0.005, False],
+['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
+['uniform-linf', 0.03, False],
 ['uniform-linf', 0.04, False],
+['uniform-l0.5', 25000.0, False],
+['uniform-l0.5', 50000.0, False],
+['uniform-l0.5', 75000.0, False],
 ['uniform-l0.5', 100000.0, False],
-['uniform-l0.5', 200000.0, False],
+['uniform-l0.5', 150000.0, False],
+['uniform-l1', 12.5, False],
+['uniform-l1', 25.0, False],
+['uniform-l1', 37.5, False],
 ['uniform-l1', 50.0, False],
-['uniform-l1', 100.0, False],
+['uniform-l1', 75.0, False],
+['uniform-l2', 0.25, False],
+['uniform-l2', 0.5, False],
+['uniform-l2', 0.75, False],
 ['uniform-l2', 1.0, False],
-['uniform-l2', 2.0, False],
+['uniform-l2', 1.5, False],
+['uniform-l5', 0.05, False],
+['uniform-l5', 0.1, False],
+['uniform-l5', 0.15, False],
+['uniform-l5', 0.2, False],
+['uniform-l5', 0.3, False],
+['uniform-l10', 0.03, False],
+['uniform-l10', 0.06, False],
+['uniform-l10', 0.09, False],
 ['uniform-l10', 0.12, False],
-['uniform-l10', 0.24, False],
+['uniform-l10', 0.18, False],
+['uniform-l50', 0.025, False],
+['uniform-l50', 0.05, False],
+['uniform-l50', 0.075, False],
+['uniform-l50', 0.1, False],
+['uniform-l50', 0.15, False],
+['uniform-l200', 0.025, False],
+['uniform-l200', 0.05, False],
+['uniform-l200', 0.075, False],
 ['uniform-l200', 0.1, False],
-['uniform-l200', 0.2, False],
+['uniform-l200', 0.15, False],
+['uniform-l0-impulse', 0.005, True],
 ['uniform-l0-impulse', 0.01, True],
+['uniform-l0-impulse', 0.015, True],
+['uniform-l0-impulse', 0.02, True],
 ['uniform-l0-impulse', 0.03, True],
 ['uniform-l0-impulse', 0.01, False],
+['uniform-l0-impulse', 0.02, False],
 ['uniform-l0-impulse', 0.03, False],
-['gaussian', 0.01, False],
-['gaussian', 0.02, False]
+['uniform-l0-impulse', 0.04, False],
+['uniform-l0-impulse', 0.05, False]
 ])
 
 batchsize = 384
-dataset = 'CIFAR10' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -51,15 +83,15 @@ number_workers = 1
 modeltype = 'DenseNet201_12'
 modelparams = {}
 resize = False
-aug_strat_check = False
-train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
+aug_strat_check = True
+train_aug_strat = 'AugMix' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
 mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 
-combine_train_corruptions = False #augment the train dataset with all corruptions
+combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:
@@ -73,16 +105,6 @@ else:
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
 ['standard', 0.0, False],
-['gaussian', 0.005, False],
-['gaussian', 0.01, False],
-['gaussian', 0.015, False],
-['gaussian', 0.02, False],
-['gaussian', 0.03, False],
-['gaussian', 0.04, False],
-['gaussian', 0.05, False],
-['gaussian', 0.06, False],
-['gaussian', 0.08, False],
-['gaussian', 0.1, False],
 ['uniform-linf', 0.005, False],
 ['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
