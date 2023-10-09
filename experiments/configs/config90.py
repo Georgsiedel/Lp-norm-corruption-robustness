@@ -92,17 +92,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, True],
 ['uniform-l0-impulse', 0.2, True],
 ['uniform-l0-impulse', 0.25, True],
-['uniform-l0-impulse', 0.3, True],
-['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.02, False],
-['uniform-l0-impulse', 0.03, False],
-['uniform-l0-impulse', 0.05, False],
-['uniform-l0-impulse', 0.075, False],
-['uniform-l0-impulse', 0.1, False],
-['uniform-l0-impulse', 0.15, False],
-['uniform-l0-impulse', 0.2, False],
-['uniform-l0-impulse', 0.25, False],
-['uniform-l0-impulse', 0.3, False]
+['uniform-l0-impulse', 0.3, True]
 ])
 
 batchsize = 384

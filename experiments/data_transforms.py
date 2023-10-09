@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import copy
 import random
 import torch
 import torch.cuda.amp
@@ -224,18 +225,21 @@ def apply_augstrat(batch, train_aug_strat):
 
 def apply_lp_corruption(batch, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
     if combine_train_corruptions == True:
-        corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
-        for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
-            train_epsilon = float(train_epsilon)
-            if max == True:
-                batch = sample_lp_corr_batch(noise_type, train_epsilon, batch, True)
-            else:
-                batch = sample_lp_corr_batch(noise_type, train_epsilon, batch, False)
+        for id, img in enumerate(batch):
+            corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
+            for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
+                train_epsilon = float(train_epsilon)
+                img = sample_lp_corr_img(noise_type, train_epsilon, img, max)
+            batch[id] = img
+        #corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
+        #for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
+        #    train_epsilon = float(train_epsilon)
+        #    batch = sample_lp_corr_batch(noise_type, train_epsilon, batch, max)
     else:
-        if max == True:
-            batch = sample_lp_corr_batch(noise, epsilon, batch, True)
-        else:
-            batch = sample_lp_corr_batch(noise, epsilon, batch, False)
+        #batch = sample_lp_corr_batch(noise, epsilon, batch, max)
+        for id, img in enumerate(batch):
+            img = sample_lp_corr_img(noise, epsilon, img, max)
+            batch[id] = img
     return batch
 
 def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
