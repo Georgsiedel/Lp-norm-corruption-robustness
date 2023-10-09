@@ -244,17 +244,7 @@ test_corruptions = np.array([
 ['uniform-l0-impulse', 0.06, True],
 ['uniform-l0-impulse', 0.08, True],
 ['uniform-l0-impulse', 0.1, True],
-['uniform-l0-impulse', 0.12, True],
-['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.02, False],
-['uniform-l0-impulse', 0.03, False],
-['uniform-l0-impulse', 0.04, False],
-['uniform-l0-impulse', 0.05, False],
-['uniform-l0-impulse', 0.07, False],
-['uniform-l0-impulse', 0.09, False],
-['uniform-l0-impulse', 0.11, False],
-['uniform-l0-impulse', 0.13, False],
-['uniform-l0-impulse', 0.15, False]
+['uniform-l0-impulse', 0.12, True]
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions

@@ -10,7 +10,7 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in list(range(40, 105)):#range(2, experiments_number):
+    for experiment in list([99,100,101,79,80,81,84,85,87,88,90,91,92,93,94,97,98,103,104,105,106,107,110,111,113,114,116,117]) + list([1,2,3,6,7,9,10,12,13,14,15,16,19,20,22,23,25,26,27,28,29,32,33,35,36,38,39,40,41,42,45,46,48,49,51,52,53,54,55,58,59,61,62,64,65,66,67,68,71,72,74,75,77,78]):#range(2, experiments_number):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
@@ -19,10 +19,15 @@ if __name__ == '__main__':
         runs = 1
         resume = False
 
+
         for run in range(runs):
             print("Training run #",run)
             if not config.combine_train_corruptions:
                 for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
+                    if experiment == 99 and id==0:
+                        resume = True
+                    else:
+                        resume=False
                     print("Separate corruption training: ", noise_type, train_epsilon, 'and max-training:', max)
                     cmd0 = "python experiments/train.py --resume={} --noise={} --epsilon={} --max={} --run={} --experiment={} " \
                            "--epochs={} --learningrate={} --dataset={} --validontest={} --lrschedule={} --lrparams=\"{}\" " \
@@ -39,7 +44,8 @@ if __name__ == '__main__':
                                 config.concurrent_combinations, config.batchsize, config.number_workers, config.lossparams,
                                 config.RandomEraseProbability, config.warmupepochs, config.normalize, config.num_classes,
                                 config.pixel_factor)
-                    os.system(cmd0)
+                    if experiment > 92 or id > 8:
+                        os.system(cmd0)
 
             if config.combine_train_corruptions:
                 print('Combined training')
