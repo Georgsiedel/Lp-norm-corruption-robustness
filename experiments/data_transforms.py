@@ -223,23 +223,28 @@ def apply_augstrat(batch, train_aug_strat):
     batch = batch.type(torch.float32) / 255.0
     return batch
 
-def apply_lp_corruption(batch, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
-    if combine_train_corruptions == True:
-        for id, img in enumerate(batch):
+def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
+
+    minibatches = batch.view(-1, minibatchsize, batch.size()[1], batch.size()[2], batch.size()[3])
+
+        #for id, img in enumerate(batch):
+        #    corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
+        #    for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
+        #        train_epsilon = float(train_epsilon)
+        #        img = sample_lp_corr_img(noise_type, train_epsilon, img, max)
+        #    batch[id] = img
+    for id, minibatch in enumerate(minibatches):
+        if combine_train_corruptions == True:
             corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
             for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
                 train_epsilon = float(train_epsilon)
-                img = sample_lp_corr_img(noise_type, train_epsilon, img, max)
-            batch[id] = img
-        #corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
-        #for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
-        #    train_epsilon = float(train_epsilon)
-        #    batch = sample_lp_corr_batch(noise_type, train_epsilon, batch, max)
-    else:
-        #batch = sample_lp_corr_batch(noise, epsilon, batch, max)
-        for id, img in enumerate(batch):
-            img = sample_lp_corr_img(noise, epsilon, img, max)
-            batch[id] = img
+                minibatch = sample_lp_corr_batch(noise_type, train_epsilon, minibatch, max)
+            minibatches[id] = minibatch
+        else:
+            minibatch = sample_lp_corr_batch(noise, epsilon, minibatch, max)
+            minibatches[id] = minibatch
+    batch = minibatches.view(-1, batch.size()[1], batch.size()[2], batch.size()[3])
+
     return batch
 
 def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
