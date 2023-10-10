@@ -144,7 +144,7 @@ def train(pbar):
         if args.aug_strat_check == True:
             inputs = apply_augstrat(inputs, args.train_aug_strat)
 
-        inputs = apply_lp_corruption(inputs, args.combine_train_corruptions, config.train_corruptions,
+        inputs = apply_lp_corruption(inputs, 8, args.combine_train_corruptions, config.train_corruptions,
                                          args.concurrent_combinations, args.max, args.noise, args.epsilon)
 
         if args.jsd_loss == True:
