@@ -226,7 +226,7 @@ def apply_augstrat(batch, train_aug_strat):
 def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
 
     minibatches = batch.view(-1, minibatchsize, batch.size()[1], batch.size()[2], batch.size()[3])
-
+    epsilon = float(epsilon)
         #for id, img in enumerate(batch):
         #    corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
         #    for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
