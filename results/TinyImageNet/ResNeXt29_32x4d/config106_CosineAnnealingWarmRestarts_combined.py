@@ -29,8 +29,9 @@ train_corruptions = np.array([
 ['uniform-l1', 200.0, False],
 ['uniform-l1', 300.0, False],
 ['uniform-l1', 500.0, False],
-['uniform-l1', 750.0, False],
-['uniform-l1', 1000.0, False],
+['uniform-l1', 700.0, False],
+['uniform-l1', 900.0, False],
+['uniform-l1', 1200.0, False],
 ['uniform-l1', 1500.0, False],
 ['uniform-l2', 0.5, False],
 ['uniform-l2', 1.0, False],
@@ -91,17 +92,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, True],
 ['uniform-l0-impulse', 0.2, True],
 ['uniform-l0-impulse', 0.25, True],
-['uniform-l0-impulse', 0.3, True],
-['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.02, False],
-['uniform-l0-impulse', 0.03, False],
-['uniform-l0-impulse', 0.05, False],
-['uniform-l0-impulse', 0.075, False],
-['uniform-l0-impulse', 0.1, False],
-['uniform-l0-impulse', 0.15, False],
-['uniform-l0-impulse', 0.2, False],
-['uniform-l0-impulse', 0.25, False],
-['uniform-l0-impulse', 0.3, False]
+['uniform-l0-impulse', 0.3, True]
 ])
 
 batchsize = 384
@@ -242,17 +233,7 @@ test_corruptions = np.array([
 ['uniform-l0-impulse', 0.15, True],
 ['uniform-l0-impulse', 0.2, True],
 ['uniform-l0-impulse', 0.25, True],
-['uniform-l0-impulse', 0.3, True],
-['uniform-l0-impulse', 0.01, False],
-['uniform-l0-impulse', 0.02, False],
-['uniform-l0-impulse', 0.03, False],
-['uniform-l0-impulse', 0.05, False],
-['uniform-l0-impulse', 0.075, False],
-['uniform-l0-impulse', 0.1, False],
-['uniform-l0-impulse', 0.15, False],
-['uniform-l0-impulse', 0.2, False],
-['uniform-l0-impulse', 0.25, False],
-['uniform-l0-impulse', 0.3, False]
+['uniform-l0-impulse', 0.3, True]
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions

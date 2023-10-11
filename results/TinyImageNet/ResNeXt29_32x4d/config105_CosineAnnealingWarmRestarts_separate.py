@@ -75,16 +75,6 @@ else:
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
 test_corruptions = np.array([
 ['standard', 0.0, False],
-['gaussian', 0.005, False],
-['gaussian', 0.01, False],
-['gaussian', 0.02, False],
-['gaussian', 0.03, False],
-['gaussian', 0.04, False],
-['gaussian', 0.05, False],
-['gaussian', 0.06, False],
-['gaussian', 0.08, False],
-['gaussian', 0.1, False],
-['gaussian', 0.15, False],
 ['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
