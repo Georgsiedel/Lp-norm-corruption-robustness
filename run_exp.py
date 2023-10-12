@@ -10,7 +10,7 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in list([79,80,81,84,85,87,88,90,91,92,93,94,97,98,103,104,105,106,107,110,111,113,114,116,117]) + list([1,2,3,6,7,9,10,12,13,14,15,16,19,20,22,23,25,26,27,28,29,32,33,35,36,38,39,40,41,42,45,46,48,49,51,52,53,54,55,58,59,61,62,64,65,66,67,68,71,72,74,75,77,78]) + list(range(118, 154)):#range(2, experiments_number):
+    for experiment in list([4,5,8,11,17,18,21,24,30,31,34,37,43,44,47,50,56,57,60,63,69,70,73,76,82,83,86,89,95,96,99,102,108,109,112,115]) + list([80,84,85,87,88,90,91,92,93,94,97,98,100,101,103,104,105,106,107,110,111,113,114,116,117]) + list([1,2,3,6,7,9,10,12,13,14,15,16,19,20,22,23,25,26,27,28,29,32,33,35,36,38,39,40,41,42,45,46,48,49,51,52,53,54,55,58,59,61,62,64,65,66,67,68,71,72,74,75,77,78]) + list(range(118, 154)) + list([1,14,27,40,53,66,79,92,105]):#range(2, experiments_number):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
