@@ -19,7 +19,7 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
             img_corr = sign * epsilon
             img_corr = torch.from_numpy(img_corr)
         else: #sample uniformly inside the norm ball
-            img_corr = dist.Uniform(-epsilon, epsilon).sample()
+            img_corr = dist.Uniform(img_corr - epsilon, img_corr + epsilon).sample()
     elif noise_type == 'uniform-linf-brightness': #only max-distribution, every pixel gets same manipulation
         img_corr = random.choice([-epsilon, epsilon])
     elif noise_type == 'gaussian': #note that this has no option for density_distribution=max
