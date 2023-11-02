@@ -1,2 +1,0 @@
-model:
-  class: torchvision.models.resnet50 # For ANT3x3
