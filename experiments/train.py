@@ -325,7 +325,7 @@ if __name__ == '__main__':
 
     # Save final model
     end_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler,
-                                                                    path='experiments/trained_models/best_checkpoint.pt')
+                                                                    path='experiments/trained_models/checkpoint.pt')
     checkpoints.save_model(end_epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
                                                     f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
                                                     f'{training_folder}{filename_spec}run_{args.run}.pth')
