@@ -16,36 +16,22 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
         if density_distribution_max == True:  # sample on the hull of the norm ball
             rand = np.random.random(img_corr.shape)
             sign = np.where(rand < 0.5, -1, 1)
-            img_corr = sign * epsilon
-            img_corr = torch.from_numpy(img_corr)
+            img_corr = torch.from_numpy(sign * epsilon)
         else: #sample uniformly inside the norm ball
-            img_corr = dist.Uniform(img_corr - epsilon, img_corr + epsilon).sample()
-    elif noise_type == 'uniform-linf-brightness': #only max-distribution, every pixel gets same manipulation
-        img_corr = random.choice([-epsilon, epsilon])
+            img_corr = torch.cuda.FloatTensor(img_corr.shape).uniform_(-epsilon, epsilon)
     elif noise_type == 'gaussian': #note that this has no option for density_distribution=max
-        var = epsilon * epsilon
-        img_corr = torch.tensor(random_noise(img_corr, mode='gaussian', mean=0, var=var, clip=True))
-    elif noise_type == 'uniform-l0-salt-pepper': #note that this has no option for density_distribution=max
-        num_pixels = round(epsilon * torch.numel(img_corr[0]))
-        pixels = random.sample(range(torch.numel(img_corr[0])), num_pixels)
-        for pixel in pixels:
-            max_pixel = random.choice([0, 1])
-            img_corr[0].view(-1)[pixel] = max_pixel
-            img_corr[1].view(-1)[pixel] = max_pixel
-            img_corr[2].view(-1)[pixel] = max_pixel
+        img_corr = torch.cuda.FloatTensor(img_corr.shape).normal_(0, epsilon)
     elif noise_type == 'uniform-l0-impulse':
-        num_pixels = round(epsilon * torch.numel(img_corr))
         if density_distribution_max == True:
-            pixels = random.sample(range(torch.numel(img_corr)), num_pixels)
-            for pixel in pixels:
-                img_corr.view(-1)[pixel] = random.choice([-1, 1])
+            mask = torch.cuda.FloatTensor(batch.shape).uniform_() > (1 - epsilon)
+            random_numbers = torch.randint(2, size=batch.size(), dtype=torch.float16).to('cuda')
+            batch_corr = torch.where(mask, random_numbers, batch)
+            return batch_corr
         else:
-            for id, img in enumerate(batch):
-                pixels = []
-                x = torch.numel(img_corr)
-                pixels.append(random.sample(range(x*id, x*(id+1)), num_pixels))
-            for pixel in pixels:
-                batch.view(-1)[pixel] = random.randint(0, 255) / 255
+            mask = torch.cuda.FloatTensor(batch.shape).uniform_() > (1 - epsilon)
+            random_numbers = torch.cuda.FloatTensor(batch.shape).uniform_(0, 1)
+            batch_corr = torch.where(mask, random_numbers, batch)
+            return batch_corr
     elif 'uniform-l' in noise_type:  #Calafiore1998: Uniform Sample Generation in lp Balls for Probabilistic Robustness Analysis
         d = len(img_corr.ravel())
         lp = [float(x) for x in re.findall(r'-?\d+\.?\d*', noise_type)]  # extract Lp-number from args.noise variable
@@ -61,6 +47,7 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
             r = np.random.random() ** (1.0 / d)
         img_corr = epsilon * r * u * sign / norm  #image-sized corruption, epsilon * random radius * random array / normed
         img_corr = torch.from_numpy(img_corr)
+
     elif noise_type == 'standard':
         pass
     else:
