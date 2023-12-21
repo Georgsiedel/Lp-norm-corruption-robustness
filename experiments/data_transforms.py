@@ -227,12 +227,7 @@ def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_c
 
     minibatches = batch.view(-1, minibatchsize, batch.size()[1], batch.size()[2], batch.size()[3])
     epsilon = float(epsilon)
-        #for id, img in enumerate(batch):
-        #    corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
-        #    for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
-        #        train_epsilon = float(train_epsilon)
-        #        img = sample_lp_corr_img(noise_type, train_epsilon, img, max)
-        #    batch[id] = img
+
     for id, minibatch in enumerate(minibatches):
         if combine_train_corruptions == True:
             corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
