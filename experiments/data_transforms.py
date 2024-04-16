@@ -215,12 +215,14 @@ def normalize(inputs, dataset):
     return inputs
 
 def apply_augstrat(batch, train_aug_strat):
-    batch = batch * 255.0
-    batch = torch.clip(batch, 0.0, 255.0)
-    batch = batch.type(torch.uint8)
-    tf = getattr(transforms, train_aug_strat)
-    batch = tf()(batch)
-    batch = batch.type(torch.float32) / 255.0
+    for id, img in enumerate(batch):
+        img = img * 255.0
+        img = img.type(torch.uint8)
+        tf = getattr(transforms, train_aug_strat)
+        img = tf()(img)
+        img = img.type(torch.float32) / 255.0
+        batch[id] = img
+
     return batch
 
 def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
