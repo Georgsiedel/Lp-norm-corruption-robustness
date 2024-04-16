@@ -1,0 +1,1 @@
+Github placeholder in case of empty folders

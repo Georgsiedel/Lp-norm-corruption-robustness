@@ -1,5 +1,6 @@
-experiments/trained_models/*
-!experiments/trained_models/README.md
+experiments/trained_models/*/*/
+!experiments/trained_models/*/
+!experiments/trained_models/*/*/
 experiments/.pytest_cache
 experiments/__pycache__
 experiments/models/__pycache__
