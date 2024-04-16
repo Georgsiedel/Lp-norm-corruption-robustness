@@ -2,7 +2,9 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False]
+['standard', 0.0, False],
+['gaussian', 0.02, False],
+['uniform-l0-impulse', 0.01, True]
 ])
 
 batchsize = 384

@@ -10,7 +10,7 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in list([0,1,2,3,4,5]):
+    for experiment in list([1,14,27,40,53,66,79,92,105,5,18,31,44,57,70,83,96,109,4,17,30,43,56,69,82,95,108])+list(range(8,14))+list(range(21,27))+list(range(34,40))+list(range(47,53))+list(range(60,66))+list(range(73,79))+list(range(86,92))+list(range(99,105))+list(range(112,118))+list(range(118,153)):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
@@ -42,7 +42,10 @@ if __name__ == '__main__':
                                 config.concurrent_combinations, config.batchsize, config.number_workers, config.lossparams,
                                 config.RandomEraseProbability, config.warmupepochs, config.normalize, config.num_classes,
                                 config.pixel_factor)
-                    os.system(cmd0)
+                    if experiment in list([1,14,27,40,53,66,79,92,105]):
+                        print('skip')
+                    else:
+                        os.system(cmd0)
 
             if config.combine_train_corruptions:
                 print('Combined training')

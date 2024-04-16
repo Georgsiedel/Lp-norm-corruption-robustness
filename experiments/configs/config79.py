@@ -2,13 +2,13 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
-['uniform-linf', 0.04, False],
-['uniform-linf', 0.08, False],
+#['standard', 0.0, False],
+#['uniform-linf', 0.04, False],
+#['uniform-linf', 0.08, False],
 #['uniform-l0.5', 1200000.0, False],
 #['uniform-l0.5', 3500000.0, False],
-['uniform-l1', 200.0, False],
-['uniform-l1', 500.0, False],
+#['uniform-l1', 200.0, False],
+#['uniform-l1', 500.0, False],
 #['uniform-l2', 2.0, False],
 #['uniform-l2', 5.0, False],
 #['uniform-l10', 0.2, False],
@@ -17,12 +17,12 @@ train_corruptions = np.array([
 #['uniform-l50', 0.1, False],
 #['uniform-l200', 0.15, False],
 #['uniform-l200', 0.3, False],
-['uniform-l0-impulse', 0.02, True],
-['uniform-l0-impulse', 0.05, True],
+#['uniform-l0-impulse', 0.02, True],
+#['uniform-l0-impulse', 0.05, True],
 #['uniform-l0-impulse', 0.02, False],
 #['uniform-l0-impulse', 0.05, False],
-#['gaussian', 0.02, False],
-#['gaussian', 0.04, False],
+['gaussian', 0.02, False],
+['gaussian', 0.04, False],
 ])
 
 batchsize = 384
