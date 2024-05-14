@@ -214,6 +214,29 @@ def normalize(inputs, dataset):
         print('no normalization values set for this dataset')
     return inputs
 
+class AugmentedDataset(torch.utils.data.Dataset):
+  """Dataset wrapper to perform augmentations and allow robust loss functions."""
+
+  def __init__(self, dataset, transform_train, transform_valid, robust_samples=0):
+    self.dataset = dataset
+    self.augment = transform_train
+    self.robust_samples = robust_samples
+    self.preprocess =transform_valid
+
+  def __getitem__(self, i):
+    x, y = self.dataset[i]
+    if self.robust_samples == 0:
+      return self.augment(x), y
+    elif self.robust_samples == 1:
+      im_tuple = (self.preprocess(x), self.augment(x))
+      return im_tuple, y
+    elif self.robust_samples == 2:
+      im_tuple = (self.preprocess(x), self.augment(x), self.augment(x))
+      return im_tuple, y
+
+  def __len__(self):
+    return len(self.dataset)
+
 def apply_augstrat(batch, train_aug_strat):
     for id, img in enumerate(batch):
         img = img * 255.0
@@ -244,7 +267,7 @@ def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_c
 
     return batch
 
-def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
+def create_transforms(dataset, aug_strat_check, train_aug_strat, RandomEraseProbability):
     # list of all data transformations used
     t = transforms.ToTensor()
     c32 = transforms.RandomCrop(32, padding=4)
@@ -254,7 +277,7 @@ def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
     c224 = transforms.CenterCrop(224)
     rrc224 = transforms.RandomResizedCrop(224, antialias=True)
     re = transforms.RandomErasing(p=RandomEraseProbability)
-    #tf = getattr(transforms, train_aug_strat)
+    tf = getattr(transforms, train_aug_strat)
 
     # transformations of validation set
     transforms_valid = transforms.Compose([t])
@@ -264,12 +287,17 @@ def create_transforms(dataset, train_aug_strat, RandomEraseProbability):
         transforms_valid = transforms.Compose([transforms_valid, r256, c224])
 
     # transformations of training set
-    transforms_train = transforms.Compose([flip, t, re])
+    transforms_train = transforms.Compose([flip])
     if dataset == 'CIFAR10' or dataset == 'CIFAR100':
         transforms_train = transforms.Compose([transforms_train, c32])
     elif dataset == 'TinyImageNet':
         transforms_train = transforms.Compose([transforms_train, c64])
     elif dataset == 'ImageNet':
         transforms_train = transforms.Compose([transforms_train, rrc224])
+    if aug_strat_check == True:
+        transforms_train = transforms.Compose([transforms_train, tf()])
+
+    transforms_train = transforms.Compose([transforms_train, t, re])
+
 
     return transforms_train, transforms_valid

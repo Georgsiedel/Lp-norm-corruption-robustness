@@ -10,13 +10,13 @@ import matplotlib.pyplot as plt
 import torch.distributions as dist
 
 def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
-    img_corr = torch.zeros(batch[0].size(), dtype=torch.float32)
+    img_corr = torch.zeros(batch[0].size(), dtype=torch.float32, device='cuda')
 
     if noise_type == 'uniform-linf':
         if density_distribution_max == True:  # sample on the hull of the norm ball
             rand = np.random.random(img_corr.shape)
             sign = np.where(rand < 0.5, -1, 1)
-            img_corr = torch.from_numpy(sign * epsilon)
+            img_corr = torch.from_numpy(sign * epsilon).to('cuda')
         else: #sample uniformly inside the norm ball
             img_corr = torch.cuda.FloatTensor(img_corr.shape).uniform_(-epsilon, epsilon)
     elif noise_type == 'gaussian': #note that this has no option for density_distribution=max
@@ -36,25 +36,22 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
         d = len(img_corr.ravel())
         lp = [float(x) for x in re.findall(r'-?\d+\.?\d*', noise_type)]  # extract Lp-number from args.noise variable
         lp = lp[0]
-        u = np.random.gamma(1 / lp, 1, size=(np.array(img_corr).shape))  # image-sized array of Laplace-distributed random variables (distribution beta factor equalling Lp-norm)
+        u = dist.Gamma(1 / lp, 1).sample(img_corr.shape).to('cuda')
         u = u ** (1 / lp)
-        rand = np.random.random(np.array(img_corr).shape)
-        sign = np.where(rand < 0.5, -1, 1)
-        norm = np.sum(abs(u) ** lp) ** (1 / lp) # scalar, norm samples to lp-norm-sphere
+        sign = torch.where(torch.cuda.FloatTensor(img_corr.shape).uniform_(0, 1) < 0.5, -1, 1)
+        norm = torch.sum(abs(u) ** lp) ** (1 / lp)  # scalar, norm samples to lp-norm-sphere
         if density_distribution_max == True:
             r = 1 # 1 to leave the sampled points on the hull of the norm ball, to sample uniformly within use this: np.random.random() ** (1.0 / d)
         else: #uniform density distribution
-            r = np.random.random() ** (1.0 / d)
+            r = dist.Uniform(0, 1).sample() ** (1.0 / d)
         img_corr = epsilon * r * u * sign / norm  #image-sized corruption, epsilon * random radius * random array / normed
-        img_corr = torch.from_numpy(img_corr)
 
     elif noise_type == 'standard':
         pass
     else:
         print('Unknown type of noise')
-
     batch_corr = batch + img_corr.unsqueeze(0)
-    batch_corr = np.clip(batch_corr, 0, 1)  # clip values below 0 and over 1
+    batch_corr = torch.clip(batch_corr, 0, 1)  # clip values below 0 and over 1
     return batch_corr
 
 def sample_lp_corr_img(noise_type, epsilon, img, density_distribution_max):

@@ -136,31 +136,18 @@ def train(pbar):
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         optimizer.zero_grad()
+        inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
 
         inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
-
-        inputs_orig, inputs_pert = copy.deepcopy(inputs), copy.deepcopy(inputs)
-
-        if args.aug_strat_check == True:
-            inputs = apply_augstrat(inputs, args.train_aug_strat)
 
         inputs = apply_lp_corruption(inputs, 8, args.combine_train_corruptions, config.train_corruptions,
                                          args.concurrent_combinations, args.max, args.noise, args.epsilon)
 
-        if args.jsd_loss == True:
-            if args.aug_strat_check == True:
-                inputs_pert = apply_augstrat(inputs_pert, args.train_aug_strat)
-            inputs_pert = apply_lp_corruption(inputs_pert, args.combine_train_corruptions, config.train_corruptions,
-                                                  args.concurrent_combinations, args.max, args.noise, args.epsilon)
-
-        if args.jsd_loss == True:
-            inputs = torch.cat((inputs_orig, inputs, inputs_pert), 0)
         if args.resize == True:
             inputs = transforms.Resize(224, antialias=True)(inputs)
         if args.normalize == True:
             inputs = normalize(inputs, args.dataset)
 
-        inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
         with torch.cuda.amp.autocast():
             outputs = model(inputs)
             if args.jsd_loss == True:
@@ -222,10 +209,13 @@ def valid(pbar):
         acc = 100. * correct / total
         return acc, avg_test_loss
 
-def load_data(transform_train, transform_valid, dataset, validontest):
+def load_data(transform_train, transform_valid, dataset, validontest, jsd_loss):
+
+    robust_samples = 2 if jsd_loss == True else 0
+
     if dataset == 'ImageNet' or dataset == 'TinyImageNet':
-        trainset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train',
-                                                    transform=transform_train)
+        trainset = AugmentedDataset(torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train'),
+                                    transform_train, transform_valid, robust_samples=robust_samples)
         if validontest == True:
             validset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/val',
                                                         transform=transform_valid)
@@ -234,7 +224,8 @@ def load_data(transform_train, transform_valid, dataset, validontest):
                                                               transform=transform_valid)
     if dataset == 'CIFAR10' or dataset == 'CIFAR100':
         load_helper = getattr(torchvision.datasets, dataset)
-        trainset = load_helper(root='./experiments/data', train=True, download=True, transform=transform_train)
+        trainset = AugmentedDataset(load_helper(root='./experiments/data', train=True, download=True),
+                                    transform_train, transform_valid, robust_samples=robust_samples)
         if validontest == True:
             validset = load_helper(root='./experiments/data', train=False, download=True, transform=transform_valid)
         else:
@@ -257,8 +248,8 @@ def load_data(transform_train, transform_valid, dataset, validontest):
 if __name__ == '__main__':
     # Load and transform data
     print('Preparing data..')
-    transform_train, transform_valid = create_transforms(args.dataset, args.train_aug_strat, args.RandomEraseProbability)
-    trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest)
+    transform_train, transform_valid = create_transforms(args.dataset, args.aug_strat_check, args.train_aug_strat, args.RandomEraseProbability)
+    trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest, args.jsd_loss)
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None, num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
 
