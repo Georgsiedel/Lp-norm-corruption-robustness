@@ -22,7 +22,7 @@ import torch.backends.cudnn as cudnn
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #torch.backends.cudnn.enabled = False #this may resolve some cuDNN errors, but increases training time by ~200%
 torch.cuda.set_device(0)
-cudnn.benchmark = True #this slightly speeds up 32bit precision training (5%)
+cudnn.benchmark = False #this slightly speeds up 32bit precision training (5%)
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -285,8 +285,9 @@ if __name__ == '__main__':
 
     # Resume from checkpoint
     if args.resume == True:
-        print('\nResuming from checkpoint..')
+
         start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
+        print('\nResuming from checkpoint at epoch', start_epoch)
 
     # Training loop
     with tqdm(total=total_steps) as pbar:

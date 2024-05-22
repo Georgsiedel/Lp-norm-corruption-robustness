@@ -43,7 +43,7 @@ mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 
-combine_train_corruptions = True #augment the train dataset with all corruptions
+combine_train_corruptions = False #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:

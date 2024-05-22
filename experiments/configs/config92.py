@@ -21,7 +21,7 @@ train_corruptions = np.array([
 #['uniform-l0-impulse', 0.05, True],
 #['uniform-l0-impulse', 0.02, False],
 #['uniform-l0-impulse', 0.05, False],
-['gaussian', 0.02, False],
+#['gaussian', 0.02, False],
 ['gaussian', 0.04, False],
 ])
 
