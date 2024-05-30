@@ -251,7 +251,6 @@ def apply_augstrat(batch, train_aug_strat):
 def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_corruptions, concurrent_combinations, max, noise, epsilon):
 
     minibatches = batch.view(-1, minibatchsize, batch.size()[1], batch.size()[2], batch.size()[3])
-    epsilon = float(epsilon)
 
     for id, minibatch in enumerate(minibatches):
         if combine_train_corruptions == True:
@@ -261,7 +260,7 @@ def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_c
                 minibatch = sample_lp_corr_batch(noise_type, train_epsilon, minibatch, max)
             minibatches[id] = minibatch
         else:
-            minibatch = sample_lp_corr_batch(noise, epsilon, minibatch, max)
+            minibatch = sample_lp_corr_batch(noise, float(epsilon), minibatch, max)
             minibatches[id] = minibatch
     batch = minibatches.view(-1, batch.size()[1], batch.size()[2], batch.size()[3])
 
