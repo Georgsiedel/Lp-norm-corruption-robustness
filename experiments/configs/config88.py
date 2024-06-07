@@ -45,6 +45,7 @@ elif dataset == 'CIFAR100':
     pixel_factor = 1
 elif dataset == 'ImageNet':
     num_classes = 1000
+    pixel_factor = 1
 elif dataset == 'TinyImageNet':
     num_classes = 200
     pixel_factor = 2

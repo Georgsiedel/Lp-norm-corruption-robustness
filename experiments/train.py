@@ -1,22 +1,22 @@
 import argparse
 import ast
 import importlib
-import copy
 import numpy as np
+import psutil
 from tqdm import tqdm
 import shutil
 import torch.nn as nn
 import torch.cuda.amp
 import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
-import torchvision.models as torchmodels
 from sklearn.model_selection import train_test_split
 
 from experiments.jsd_loss import JsdCrossEntropy
 from experiments.data_transforms import *
 import experiments.checkpoints as checkpoints
 from experiments.visuals_and_reports import learning_curves
-import experiments.models as low_dim_models
+import experiments.models.smallsized as smallsized
+import experiments.models.ImageNet as ImageNet
 
 import torch.backends.cudnn as cudnn
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -111,8 +111,22 @@ parser.add_argument('--pixel_factor', default=1, type=int, help='default is 1 fo
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
 config = importlib.import_module(configname)
-crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
-jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
+
+def plot_images(images, corrupted_images, number):
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(number, 2)
+    images, corrupted_images = images.cpu(), corrupted_images.cpu()
+    for i in range(number):
+        image = images[i]
+        image = torch.squeeze(image)
+        image = image.permute(1, 2, 0)
+        axs[i, 0].imshow(image)
+        corrupted_image = corrupted_images[i]
+        corrupted_image = torch.squeeze(corrupted_image)
+        corrupted_image = corrupted_image.permute(1, 2, 0)
+        axs[i, 1].imshow(corrupted_image)
+    #return fig
+    plt.show()
 
 def calculate_steps(): #+0.5 is a way of rounding up to account for the last partial batch in every epoch
     if args.dataset == 'ImageNet':
@@ -137,6 +151,8 @@ def train(pbar):
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         optimizer.zero_grad()
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
+        #print(torch.max(inputs[0]), torch.min(inputs[0]))
+        #plot_images(inputs, inputs, 3)
 
         inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
 
@@ -214,13 +230,13 @@ def load_data(transform_train, transform_valid, dataset, validontest, jsd_loss):
     robust_samples = 2 if jsd_loss == True else 0
 
     if dataset == 'ImageNet' or dataset == 'TinyImageNet':
-        trainset = AugmentedDataset(torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train'),
+        trainset = AugmentedDataset(torchvision.datasets.ImageFolder(root=f'../corruption-testing/experiments/data/{dataset}/train'),
                                     transform_train, transform_valid, robust_samples=robust_samples)
         if validontest == True:
-            validset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/val',
+            validset = torchvision.datasets.ImageFolder(root=f'../corruption-testing/experiments/data/{dataset}/val',
                                                         transform=transform_valid)
         else:
-            trainset_clean = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/train',
+            trainset_clean = torchvision.datasets.ImageFolder(root=f'../corruption-testing/experiments/data/{dataset}/train',
                                                               transform=transform_valid)
     if dataset == 'CIFAR10' or dataset == 'CIFAR100':
         load_helper = getattr(torchvision.datasets, dataset)
@@ -246,32 +262,42 @@ def load_data(transform_train, transform_valid, dataset, validontest, jsd_loss):
     return trainset, validset
 
 if __name__ == '__main__':
+    from multiprocessing import freeze_support
+    freeze_support()
+
     # Load and transform data
     print('Preparing data..')
-    transform_train, transform_valid = create_transforms(args.dataset, args.aug_strat_check, args.train_aug_strat, args.RandomEraseProbability)
+    transform_train, transform_valid = create_transforms(args.dataset, args.aug_strat_check, args.train_aug_strat,
+                                                         args.RandomEraseProbability)
     trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest, args.jsd_loss)
-    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None, num_workers=args.number_workers)
-    validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True, num_workers=args.number_workers)
+    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None,
+                             num_workers=args.number_workers, persistent_workers=True)
+    validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True,
+                                  num_workers=args.number_workers, persistent_workers=True)
 
     # Construct model
     print(f'\nBuilding {args.modeltype} model with {args.modelparams} | Augmentation strategy: {args.aug_strat_check}'
           f' | JSD loss: {args.jsd_loss}')
-    if args.dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
-        model_class = getattr(low_dim_models, args.modeltype)
+    if args.dataset in ('CIFAR10', 'CIFAR100', 'TinyImageNet'):
+        model_class = getattr(smallsized, args.modeltype)
         model = model_class(num_classes=args.num_classes, factor=args.pixel_factor, **args.modelparams)
     else:
-        model_class = getattr(torchmodels, args.modeltype)
-        model = model_class(num_classes = args.num_classes, **args.modelparams)
+        model_class = getattr(ImageNet, args.modeltype)
+        model = model_class(num_classes=args.num_classes, **args.modelparams)
     model = torch.nn.DataParallel(model).to(device)
 
     # Define Optimizer, Learningrate Scheduler, Scaler, and Early Stopping
+    crossentropy = nn.CrossEntropyLoss(label_smoothing=args.lossparams["smoothing"])
+    jsdcrossentropy = JsdCrossEntropy(**args.lossparams)
     opti = getattr(optim, args.optimizer)
     optimizer = opti(model.parameters(), lr=args.learningrate, **args.optimizerparams)
     schedule = getattr(optim.lr_scheduler, args.lrschedule)
     scheduler = schedule(optimizer, **args.lrparams)
     if args.warmupepochs > 0:
-        warmupscheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=args.warmupepochs)
-        scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, scheduler], milestones=[args.warmupepochs])
+        warmupscheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=1.0,
+                                                      total_iters=args.warmupepochs)
+        scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmupscheduler, scheduler],
+                                                    milestones=[args.warmupepochs])
     scaler = torch.cuda.amp.GradScaler()
     early_stopper = checkpoints.EarlyStopping(patience=args.earlystopPatience, verbose=False)
 
@@ -285,13 +311,13 @@ if __name__ == '__main__':
 
     # Resume from checkpoint
     if args.resume == True:
-
-        start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
+        start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler,
+                                                                          path='experiments/trained_models/checkpoint.pt')
         print('\nResuming from checkpoint at epoch', start_epoch)
 
     # Training loop
     with tqdm(total=total_steps) as pbar:
-        with torch.autograd.set_detect_anomaly(False, check_nan=False): #this may resolve some Cuda/cuDNN errors.
+        with torch.autograd.set_detect_anomaly(False, check_nan=False):  # this may resolve some Cuda/cuDNN errors.
             # check_nan=True increases 32bit precision train time by ~20% and causes errors due to nan values for mixed precision training.
             for epoch in range(start_epoch, end_epoch):
                 train_acc, train_loss = train(pbar)
@@ -305,7 +331,8 @@ if __name__ == '__main__':
                 else:
                     scheduler.step()
 
-                checkpoints.save_model(epoch, model, optimizer, scheduler, path = 'experiments/trained_models/checkpoint.pt')
+                checkpoints.save_model(epoch, model, optimizer, scheduler,
+                                       path='experiments/trained_models/checkpoint.pt')
                 early_stopper(valid_acc, model)
                 if early_stopper.best_model == True:
                     checkpoints.save_model(epoch, model, optimizer, scheduler,
@@ -318,14 +345,16 @@ if __name__ == '__main__':
     # Save final model
     end_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler,
                                                                     path='experiments/trained_models/checkpoint.pt')
-    checkpoints.save_model(end_epoch, model, optimizer, scheduler, path = f'./experiments/trained_models/{args.dataset}'
-                                                    f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
-                                                    f'{training_folder}{filename_spec}run_{args.run}.pth')
+    checkpoints.save_model(end_epoch, model, optimizer, scheduler, path=f'./experiments/trained_models/{args.dataset}'
+                                                                        f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
+                                                                        f'{training_folder}{filename_spec}run_{args.run}.pth')
     # print results
     print("Maximum validation accuracy of", max(valid_accs), "achieved after", np.argmax(valid_accs) + 1, "epochs; "
-         "Minimum validation loss of", min(valid_losses), "achieved after", np.argmin(valid_losses) + 1, "epochs; ")
+                                                                                                          "Minimum validation loss of",
+          min(valid_losses), "achieved after", np.argmin(valid_losses) + 1, "epochs; ")
     # save learning curves and config file
     learning_curves(args.dataset, args.modeltype, args.lrschedule, args.experiment, args.run, train_accs,
                     valid_accs, train_losses, valid_losses, training_folder, filename_spec)
     shutil.copyfile(f'./experiments/configs/config{args.experiment}.py',
                     f'./results/{args.dataset}/{args.modeltype}/config{args.experiment}_{args.lrschedule}_{training_folder}.py')
+

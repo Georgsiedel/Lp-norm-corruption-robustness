@@ -4,14 +4,14 @@ import numpy as np
 import torch.backends.cudnn as cudnn
 import torchvision
 from torchvision import datasets
-import torchvision.models as torchmodels
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchmetrics.classification import MulticlassCalibrationError
 device = "cuda" if torch.cuda.is_available() else "cpu"
+torch.cuda.device(0)
 
-import experiments.models as low_dim_models
-from experiments.sample_lp_corruption import sample_lp_corr_img
+import experiments.models.smallsized as smallsized
+import experiments.models.ImageNet as ImageNet
 from experiments.data_transforms import apply_lp_corruption
 from experiments.normalized_model_wrapper import create_normalized_model_wrapper
 import experiments.adversarial_eval as adv_eval
@@ -22,27 +22,10 @@ def compute_metric(loader, net, noise_type, epsilon, max, combine, resize):
         correct = 0
         total = 0
         for batch_idx, (inputs, targets) in enumerate(loader):
-            #inputs_pert = inputs
             inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
 
             inputs_pert = apply_lp_corruption(inputs, 8, combine, noise_type,
                                 1, max, noise_type, epsilon)
-            #if combine == True:
-            #    corruptions = noise_type #this is a helper
-            #    for id, img in enumerate(inputs):
-            #        (n, e, m) = random.choice(corruptions)
-            #        e = float(e)
-            #        if m == True:
-            #            inputs_pert[id] = sample_lp_corr_img(n, e, img, True)
-            #        else:
-            #            inputs_pert[id] = sample_lp_corr_img(n, e, img, False)
-            #else:
-            #    for id, img in enumerate(inputs):
-            #        epsilon = float(epsilon)
-            #        if max == True:
-            #            inputs_pert[id] = sample_lp_corr_img(noise_type, epsilon, img, True)
-            #        else:
-            #            inputs_pert[id] = sample_lp_corr_img(noise_type, epsilon, img, False)
 
             if resize == True:
                 inputs_pert = transforms.Resize(224, antialias=True)(inputs_pert)
@@ -159,7 +142,7 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         test_transforms = transforms.Compose([transforms.ToTensor()])
 
     if dataset == 'ImageNet' or dataset == 'TinyImageNet':
-        testset = torchvision.datasets.ImageFolder(root=f'./experiments/data/{dataset}/val', transform=test_transforms)
+        testset = torchvision.datasets.ImageFolder(root=f'../corruption-testing/experiments/data/{dataset}/val', transform=test_transforms)
         test_loader = DataLoader(testset, batch_size=batchsize, shuffle =False,
                                  pin_memory=True, num_workers=workers)
     else:
@@ -170,14 +153,14 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
     num_classes = len(testset.classes)
 
     #Load model
-    if dataset == 'CIFAR10' or 'CIFAR100' or 'TinyImageNet':
-        model_class = getattr(low_dim_models, modeltype)
+    if dataset in ('CIFAR10', 'CIFAR100', 'TinyImageNet'):
+        model_class = getattr(smallsized, modeltype)
         model = model_class(num_classes=num_classes, factor=pixel_factor, **modelparams)
         if normalize == True:
             Normalized_Model_Wrapper = create_normalized_model_wrapper(dataset, modeltype)
             model = Normalized_Model_Wrapper(num_classes=num_classes, factor=pixel_factor, **modelparams)
     else:
-        model_class = getattr(torchmodels, modeltype)
+        model_class = getattr(ImageNet, modeltype)
         model = model_class(num_classes = num_classes, **modelparams)
         if normalize == True:
             Normalized_Model_Wrapper = create_normalized_model_wrapper(dataset, modeltype)
