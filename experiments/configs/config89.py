@@ -2,8 +2,8 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
-['gaussian', 0.04, False],
+#['standard', 0.0, False],
+#['gaussian', 0.04, False],
 ['uniform-l0-impulse', 0.02, True]
 ])
 
@@ -31,7 +31,7 @@ earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
-number_workers = 1
+number_workers = 0
 modeltype = 'WideResNet_28_4'
 modelparams = {'dropout_rate': 0.3}
 resize = False

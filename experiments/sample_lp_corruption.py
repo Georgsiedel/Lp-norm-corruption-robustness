@@ -20,9 +20,11 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
                 sign = np.where(rand < 0.5, -1, 1)
                 corruption = torch.from_numpy(sign * epsilon)
             else: #sample uniformly inside the norm ball
-                corruption = torch.cuda.FloatTensor(batch.shape).uniform_(-epsilon, epsilon)
+                #corruption = torch.cuda.FloatTensor(batch.shape).uniform_(-epsilon, epsilon)
+                corruption = (torch.rand(batch.shape, device=device, dtype=torch.float16) * 2 - 1) * epsilon
         elif noise_type == 'gaussian': #note that this has no option for density_distribution=max
-            corruption = torch.cuda.FloatTensor(batch.shape).normal_(0, epsilon)
+            #corruption = torch.cuda.FloatTensor(batch.shape).normal_(0, epsilon)
+            corruption = torch.randn(batch.shape, device=device, dtype=torch.float16) * epsilon
         elif noise_type == 'uniform-l0-impulse':
             num_dimensions = torch.numel(batch[0])
             num_pixels = int(num_dimensions * epsilon)
@@ -35,7 +37,8 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
             if density_distribution_max == True:
                 random_numbers = torch.randint(2, size=batch.size(), dtype=torch.float16, device=device)
             else:
-                random_numbers = torch.cuda.FloatTensor(batch.shape).uniform_(0, 1)
+                #random_numbers = torch.cuda.FloatTensor(batch.shape).uniform_(0, 1)
+                random_numbers = torch.rand(batch.shape, device=device, dtype=torch.float16)
             batch_corr = torch.where(mask, random_numbers, batch)
 
             return batch_corr
@@ -48,7 +51,8 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
             lp = [float(x) for x in re.findall(r'-?\d+\.?\d*', noise_type)][0]
             u = dist.Gamma(1 / lp, 1).sample(img_corr.shape).to(device)
             u = u ** (1 / lp)
-            sign = torch.where(torch.cuda.FloatTensor(img_corr.shape).uniform_(0, 1) < 0.5, -1, 1)
+            #sign = torch.where(torch.cuda.FloatTensor(img_corr.shape).uniform_(0, 1) < 0.5, -1, 1)
+            sign = torch.where(torch.rand(batch.shape, device=device, dtype=torch.float16) < 0.5, -1, 1)
             norm = torch.sum(abs(u) ** lp) ** (1 / lp)  # scalar, norm samples to lp-norm-sphere
             if density_distribution_max == True:
                 r = 1

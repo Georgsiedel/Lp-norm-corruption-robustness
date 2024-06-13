@@ -271,9 +271,9 @@ if __name__ == '__main__':
                                                          args.RandomEraseProbability)
     trainset, validset = load_data(transform_train, transform_valid, args.dataset, args.validontest, args.jsd_loss)
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, pin_memory=True, collate_fn=None,
-                             num_workers=args.number_workers, persistent_workers=True)
+                             num_workers=args.number_workers)
     validationloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, pin_memory=True,
-                                  num_workers=args.number_workers, persistent_workers=True)
+                                  num_workers=args.number_workers)
 
     # Construct model
     print(f'\nBuilding {args.modeltype} model with {args.modelparams} | Augmentation strategy: {args.aug_strat_check}'
