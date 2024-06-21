@@ -2,9 +2,37 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
-['gaussian', 0.04, False],
-['uniform-l0-impulse', 0.02, True]
+#['standard', 0.0, False],
+['uniform-linf', 0.01, False],
+['uniform-linf', 0.02, False],
+['uniform-linf', 0.03, False],
+['uniform-linf', 0.04, False],
+['uniform-linf', 0.06, False],
+['uniform-linf', 0.08, False],
+['uniform-linf', 0.1, False],
+['uniform-linf', 0.15, False],
+['uniform-linf', 0.2, False],
+['uniform-linf', 0.3, False],
+['uniform-l2', 0.5, False],
+['uniform-l2', 1.0, False],
+['uniform-l2', 2.0, False],
+['uniform-l2', 3.0, False],
+['uniform-l2', 4.0, False],
+['uniform-l2', 5.0, False],
+['uniform-l2', 7.5, False],
+['uniform-l2', 10.0, False],
+['uniform-l2', 15.0, False],
+['uniform-l2', 20.0, False],
+['uniform-l0-impulse', 0.01, True],
+['uniform-l0-impulse', 0.02, True],
+['uniform-l0-impulse', 0.03, True],
+['uniform-l0-impulse', 0.05, True],
+['uniform-l0-impulse', 0.075, True],
+['uniform-l0-impulse', 0.1, True],
+['uniform-l0-impulse', 0.15, True],
+['uniform-l0-impulse', 0.2, True],
+['uniform-l0-impulse', 0.25, True],
+['uniform-l0-impulse', 0.3, True],
 ])
 
 batchsize = 384
@@ -32,8 +60,8 @@ earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
 number_workers = 0
-modeltype = 'ResNeXt29_32x4d'
-modelparams = {}
+modeltype = 'WideResNet_28_4'
+modelparams = {'dropout_rate': 0.3}
 resize = False
 aug_strat_check = True
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
@@ -43,7 +71,7 @@ mixup_alpha = 0.0 #default 0.2 #If both mixup and cutmix are >0, mixup or cutmix
 cutmix_alpha = 0.0 # default 1.0 #If both mixup and cutmix are >0, mixup or cutmix are selected by 0.5 chance
 RandomEraseProbability = 0.0
 
-combine_train_corruptions = False #augment the train dataset with all corruptions
+combine_train_corruptions = True #augment the train dataset with all corruptions
 concurrent_combinations = 1 #only has an effect if combine_train_corruption is True
 
 if combine_train_corruptions:

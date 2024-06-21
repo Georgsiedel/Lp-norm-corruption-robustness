@@ -10,14 +10,14 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in list(range(99,105))+list(range(112,118))+list(range(144,146))+list(range(148,150))+list(range(152,154))+list([91]):
+    for experiment in list(range(113,118))+list(range(144,146))+list(range(148,150))+list(range(152,154)):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
         print('Starting experiment #',experiment, 'on', config.dataset, 'dataset')
         runs = 1
-        if experiment == 0:
+        if experiment in [113, 114]:
             resume = True
         else:
             resume = False
@@ -26,8 +26,6 @@ if __name__ == '__main__':
             print("Training run #",run)
             if not config.combine_train_corruptions:
                 for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
-                    if experiment == 99 and id == 1:
-                        resume = True
                     print("Separate corruption training: ", noise_type, train_epsilon, 'and max-training:', max)
                     cmd0 = "python experiments/train.py --resume={} --noise={} --epsilon={} --max={} --run={} --experiment={} " \
                            "--epochs={} --learningrate={} --dataset={} --validontest={} --lrschedule={} --lrparams=\"{}\" " \
@@ -44,7 +42,7 @@ if __name__ == '__main__':
                                 config.concurrent_combinations, config.batchsize, config.number_workers, config.lossparams,
                                 config.RandomEraseProbability, config.warmupepochs, config.normalize, config.num_classes,
                                 config.pixel_factor)
-                    if experiment == 99 and id == 0:
+                    if experiment == 112:
                         print('skip')
                     else:
                         os.system(cmd0)

@@ -4,7 +4,7 @@ import torchvision.models.mobilenet
 train_corruptions = np.array([
 ['standard', 0.0, False],
 ['gaussian', 0.04, False],
-['uniform-l0-impulse', 0.02, True]
+#['uniform-l0-impulse', 0.02, True]
 ])
 
 batchsize = 384
@@ -31,7 +31,7 @@ earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
-number_workers = 1
+number_workers = 0
 modeltype = 'DenseNet201_12'
 modelparams = {}
 resize = False

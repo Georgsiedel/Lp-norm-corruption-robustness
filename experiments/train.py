@@ -3,6 +3,12 @@ import ast
 import importlib
 import numpy as np
 import psutil
+
+import warnings
+warnings.filterwarnings("ignore")
+from multiprocessing import freeze_support
+freeze_support()
+
 from tqdm import tqdm
 import shutil
 import torch.nn as nn
@@ -262,8 +268,6 @@ def load_data(transform_train, transform_valid, dataset, validontest, jsd_loss):
     return trainset, validset
 
 if __name__ == '__main__':
-    from multiprocessing import freeze_support
-    freeze_support()
 
     # Load and transform data
     print('Preparing data..')
@@ -312,7 +316,7 @@ if __name__ == '__main__':
     # Resume from checkpoint
     if args.resume == True:
         start_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler,
-                                                                          path='experiments/trained_models/checkpoint.pt')
+                                                                          path=f'experiments/trained_models/checkpoint{args.experiment}.pt')
         print('\nResuming from checkpoint at epoch', start_epoch)
 
     # Training loop
@@ -332,7 +336,7 @@ if __name__ == '__main__':
                     scheduler.step()
 
                 checkpoints.save_model(epoch, model, optimizer, scheduler,
-                                       path='experiments/trained_models/checkpoint.pt')
+                                       path=f'experiments/trained_models/checkpoint{args.experiment}.pt')
                 early_stopper(valid_acc, model)
                 if early_stopper.best_model == True:
                     checkpoints.save_model(epoch, model, optimizer, scheduler,
@@ -344,7 +348,7 @@ if __name__ == '__main__':
 
     # Save final model
     end_epoch, model, optimizer, scheduler = checkpoints.load_model(model, optimizer, scheduler,
-                                                                    path='experiments/trained_models/checkpoint.pt')
+                                                                    path=f'experiments/trained_models/checkpoint{args.experiment}.pt')
     checkpoints.save_model(end_epoch, model, optimizer, scheduler, path=f'./experiments/trained_models/{args.dataset}'
                                                                         f'/{args.modeltype}/config{args.experiment}_{args.lrschedule}_'
                                                                         f'{training_folder}{filename_spec}run_{args.run}.pth')
