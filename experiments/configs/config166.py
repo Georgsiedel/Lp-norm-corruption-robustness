@@ -2,10 +2,9 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
-#['gaussian', 0.04, False],
-['uniform-l0-impulse', 0.02, True]
+['noisy-mix', {'add': 0.2, 'mult': 0.1, 'sparse': 0.0}, False]
 ])
+noise_patch_lower_scale = 1.0
 
 batchsize = 384
 dataset = 'TinyImageNet' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
@@ -31,11 +30,11 @@ earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
-number_workers = 0
-modeltype = 'ResNeXt29_32x4d'
-modelparams = {}
+number_workers = 2
+modeltype = 'WideResNet_28_4'
+modelparams = {'dropout_rate': 0.3}
 resize = False
-aug_strat_check = True
+aug_strat_check = False
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}

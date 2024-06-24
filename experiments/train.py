@@ -3,6 +3,7 @@ import ast
 import importlib
 import numpy as np
 import psutil
+import copy
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -20,7 +21,7 @@ from sklearn.model_selection import train_test_split
 from experiments.jsd_loss import JsdCrossEntropy
 from experiments.data_transforms import *
 import experiments.checkpoints as checkpoints
-from experiments.visuals_and_reports import learning_curves
+from experiments.visuals_and_reports import learning_curves, plot_images
 import experiments.models.smallsized as smallsized
 import experiments.models.ImageNet as ImageNet
 
@@ -57,6 +58,7 @@ class str2dictAction(argparse.Action):
 parser = argparse.ArgumentParser(description='PyTorch Training with perturbations')
 parser.add_argument('--resume', type=str2bool, nargs='?', const=False, default=False,
                     help='resuming from saved checkpoint in fixed-path repo defined below')
+parser.add_argument('--id', default=0, type=int, help='ID number of separate experiments with different noise')
 parser.add_argument('--noise', default='standard', type=str, help='type of noise')
 parser.add_argument('--epsilon', default=0.0, type=float, help='perturbation radius')
 parser.add_argument('--run', default=0, type=int, help='run number')
@@ -113,26 +115,16 @@ parser.add_argument('--normalize', type=str2bool, nargs='?', const=False, defaul
 parser.add_argument('--num_classes', default=10, type=int, help='Number of classes of the dataset')
 parser.add_argument('--pixel_factor', default=1, type=int, help='default is 1 for 32px (CIFAR10), '
                     'e.g. 2 for 64px images. Scales convolutions automatically in the same model architecture')
+parser.add_argument('--noise_patch_lower_scale', default=1.0, type=float,
+                    help='The ratio of the image covered by the selected random noise within a variable format rectangle.')
 
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
 config = importlib.import_module(configname)
-
-def plot_images(images, corrupted_images, number):
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(number, 2)
-    images, corrupted_images = images.cpu(), corrupted_images.cpu()
-    for i in range(number):
-        image = images[i]
-        image = torch.squeeze(image)
-        image = image.permute(1, 2, 0)
-        axs[i, 0].imshow(image)
-        corrupted_image = corrupted_images[i]
-        corrupted_image = torch.squeeze(corrupted_image)
-        corrupted_image = corrupted_image.permute(1, 2, 0)
-        axs[i, 1].imshow(corrupted_image)
-    #return fig
-    plt.show()
+if args.combine_train_corruptions == True:
+    train_corruptions = config.train_corruptions
+else:
+    train_corruptions = config.train_corruptions[args.id]
 
 def calculate_steps(): #+0.5 is a way of rounding up to account for the last partial batch in every epoch
     if args.dataset == 'ImageNet':
@@ -157,13 +149,12 @@ def train(pbar):
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         optimizer.zero_grad()
         inputs, targets = inputs.to(device, dtype=torch.float32), targets.to(device)
-        #print(torch.max(inputs[0]), torch.min(inputs[0]))
-        #plot_images(inputs, inputs, 3)
-
+        #inputs_copy = inputs.clone()
         inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
 
-        inputs = apply_lp_corruption(inputs, 8, args.combine_train_corruptions, config.train_corruptions,
-                                         args.concurrent_combinations, args.max, args.noise, args.epsilon)
+        inputs = apply_lp_corruption(inputs, 8, args.combine_train_corruptions, train_corruptions,
+                                         args.concurrent_combinations, args.noise_patch_lower_scale)
+        #plot_images(inputs_copy, inputs, 3)
 
         if args.resize == True:
             inputs = transforms.Resize(224, antialias=True)(inputs)

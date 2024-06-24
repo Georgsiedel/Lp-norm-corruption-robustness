@@ -6,14 +6,35 @@ import torchvision.transforms as transforms
 from skimage.util import random_noise
 import numpy as np
 import random
+import math
 import matplotlib.pyplot as plt
 import torch.distributions as dist
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+def noisy_mix(x, add_noise_level=0.0, mult_noise_level=0.0, sparse_level=0.0):
+    #https://github.com/erichson/NoisyMix and https://github.com/erichson/NFM
+
+    add_noise = 0.0
+    mult_noise = 1.0
+    with torch.cuda.device(0):
+        if add_noise_level > 0.0:
+            add_noise = add_noise_level * np.random.beta(2, 5) * torch.cuda.FloatTensor(x.shape).normal_()
+            sparse = torch.cuda.FloatTensor(x.shape).uniform_()
+            add_noise[sparse < sparse_level] = 0
+        if mult_noise_level > 0.0:
+            mult_noise = mult_noise_level * np.random.beta(2, 5) * (
+                        2 * torch.cuda.FloatTensor(x.shape).uniform_() - 1) + 1
+            sparse = torch.cuda.FloatTensor(x.shape).uniform_()
+            mult_noise[sparse < sparse_level] = 1.0
+
+    return mult_noise * x + add_noise
 
 def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
     with torch.cuda.device(0):
         corruption = torch.zeros(batch.size(), dtype=torch.float16)
 
+        if noise_type == 'noisy-mix':
+            return noisy_mix(batch, epsilon['add'], epsilon['mult'], epsilon['sparse'])
         if noise_type == 'uniform-linf':
             if density_distribution_max == True:  # sample on the hull of the norm ball
                 rand = np.random.random(batch.shape)
@@ -22,8 +43,10 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
             else: #sample uniformly inside the norm ball
                 #corruption = torch.cuda.FloatTensor(batch.shape).uniform_(-epsilon, epsilon)
                 corruption = (torch.rand(batch.shape, device=device, dtype=torch.float16) * 2 - 1) * epsilon
-        elif noise_type == 'gaussian': #note that this has no option for density_distribution=max
+        elif noise_type == 'gaussian': #note that the option density_distribution_max = False here means that epsilon is random uniformly sampled below its value
             #corruption = torch.cuda.FloatTensor(batch.shape).normal_(0, epsilon)
+            if density_distribution_max == False:
+                epsilon = torch.rand(1).item() * epsilon
             corruption = torch.randn(batch.shape, device=device, dtype=torch.float16) * epsilon
         elif noise_type == 'uniform-l0-impulse':
             num_dimensions = torch.numel(batch[0])

@@ -48,6 +48,7 @@ train_corruptions = np.array([
 ['uniform-l0-impulse', 0.05, True],
 ['uniform-l0-impulse', 0.075, True],
 ])
+noise_patch_lower_scale = 1.0
 
 batchsize = 384
 dataset = 'TinyImageNet' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
@@ -73,7 +74,7 @@ earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
-number_workers = 4
+number_workers = 0
 modeltype = 'ResNeXt29_32x4d'
 modelparams = {}
 resize = False

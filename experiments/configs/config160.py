@@ -2,13 +2,12 @@ import numpy as np
 import torchvision.models.mobilenet
 
 train_corruptions = np.array([
-['standard', 0.0, False],
-#['gaussian', 0.04, False],
-['uniform-l0-impulse', 0.02, True]
+['noisy-mix', {'add': 0.1, 'mult': 0.05, 'sparse': 0.0}, False]
 ])
+noise_patch_lower_scale = 1.0
 
 batchsize = 384
-dataset = 'TinyImageNet' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
+dataset = 'CIFAR100' #ImageNet #CIFAR100 #CIFAR10 #TinyImageNet
 if dataset == 'CIFAR10':
     num_classes = 10
     pixel_factor = 1
@@ -31,11 +30,11 @@ earlystop = False
 earlystopPatience = 15
 optimizer = 'SGD'
 optimizerparams = {'momentum': 0.9, 'weight_decay': 5e-4}
-number_workers = 0
-modeltype = 'ResNeXt29_32x4d'
-modelparams = {}
+number_workers = 1
+modeltype = 'WideResNet_28_4'
+modelparams = {'dropout_rate': 0.3}
 resize = False
-aug_strat_check = True
+aug_strat_check = False
 train_aug_strat = 'TrivialAugmentWide' #TrivialAugmentWide, RandAugment, AutoAugment, AugMix
 jsd_loss = False
 lossparams = {'num_splits': 3, 'alpha': 12, 'smoothing': 0.0}
@@ -55,7 +54,9 @@ else:
 #define noise type (first column): 'gaussian', 'uniform-l0-impulse', 'uniform-l0-salt-pepper', 'uniform-linf'. also: all positive numbers p>0 for uniform Lp possible: 'uniform-l1', 'uniform-l2', ...
 #define intensity (second column): max.-distance of random perturbations for model training and evaluation (gaussian: std-dev; l0: proportion of pixels corrupted; lp: epsilon)
 #define whether density_distribution=max (third column) is True (sample only maximum intensity values) or False (uniformly distributed up to maximum intensity)
-test_corruptions = np.array([['standard', 0.0, False],
+test_corruptions = np.array([
+['standard', 0.0, False],
+['uniform-linf', 0.005, False],
 ['uniform-linf', 0.01, False],
 ['uniform-linf', 0.02, False],
 ['uniform-linf', 0.03, False],
@@ -63,89 +64,88 @@ test_corruptions = np.array([['standard', 0.0, False],
 ['uniform-linf', 0.06, False],
 ['uniform-linf', 0.08, False],
 ['uniform-linf', 0.1, False],
+['uniform-linf', 0.12, False],
 ['uniform-linf', 0.15, False],
-['uniform-linf', 0.2, False],
-['uniform-linf', 0.3, False],
+['uniform-l0.5', 25000.0, False],
+['uniform-l0.5', 50000.0, False],
+['uniform-l0.5', 75000.0, False],
+['uniform-l0.5', 100000.0, False],
+['uniform-l0.5', 150000.0, False],
 ['uniform-l0.5', 200000.0, False],
+['uniform-l0.5', 250000.0, False],
+['uniform-l0.5', 300000.0, False],
+['uniform-l0.5', 350000.0, False],
 ['uniform-l0.5', 400000.0, False],
-['uniform-l0.5', 700000.0, False],
-['uniform-l0.5', 1200000.0, False],
-['uniform-l0.5', 1800000.0, False],
-['uniform-l0.5', 2500000.0, False],
-['uniform-l0.5', 3500000.0, False],
-['uniform-l0.5', 5000000.0, False],
-['uniform-l0.5', 8000000.0, False],
-['uniform-l0.5', 12000000.0, False],
+['uniform-l1', 12.5, False],
+['uniform-l1', 25.0, False],
 ['uniform-l1', 37.5, False],
+['uniform-l1', 50.0, False],
 ['uniform-l1', 75.0, False],
+['uniform-l1', 100.0, False],
 ['uniform-l1', 125.0, False],
+['uniform-l1', 150.0, False],
+['uniform-l1', 175.0, False],
 ['uniform-l1', 200.0, False],
-['uniform-l1', 300.0, False],
-['uniform-l1', 400.0, False],
-['uniform-l1', 600.0, False],
-['uniform-l1', 800.0, False],
-['uniform-l1', 1100.0, False],
-['uniform-l1', 1500.0, False],
+['uniform-l2', 0.25, False],
 ['uniform-l2', 0.5, False],
+['uniform-l2', 0.75, False],
 ['uniform-l2', 1.0, False],
+['uniform-l2', 1.5, False],
 ['uniform-l2', 2.0, False],
+['uniform-l2', 2.5, False],
 ['uniform-l2', 3.0, False],
 ['uniform-l2', 4.0, False],
 ['uniform-l2', 5.0, False],
-['uniform-l2', 7.5, False],
-['uniform-l2', 10.0, False],
-['uniform-l2', 15.0, False],
-['uniform-l2', 20.0, False],
-['uniform-l5', 0.05, False],
+['uniform-l5', 0.03, False],
+['uniform-l5', 0.06, False],
 ['uniform-l5', 0.1, False],
 ['uniform-l5', 0.15, False],
 ['uniform-l5', 0.2, False],
+['uniform-l5', 0.25, False],
 ['uniform-l5', 0.3, False],
 ['uniform-l5', 0.4, False],
 ['uniform-l5', 0.5, False],
-['uniform-l5', 0.75, False],
-['uniform-l5', 1.0, False],
-['uniform-l5', 1.5, False],
+['uniform-l5', 0.6, False],
 ['uniform-l10', 0.02, False],
-['uniform-l10', 0.04, False],
-['uniform-l10', 0.06, False],
+['uniform-l10', 0.03, False],
+['uniform-l10', 0.05, False],
+['uniform-l10', 0.07, False],
 ['uniform-l10', 0.1, False],
-['uniform-l10', 0.14, False],
-['uniform-l10', 0.18, False],
+['uniform-l10', 0.13, False],
+['uniform-l10', 0.16, False],
+['uniform-l10', 0.2, False],
 ['uniform-l10', 0.25, False],
-['uniform-l10', 0.35, False],
-['uniform-l10', 0.5, False],
-['uniform-l10', 0.7, False],
+['uniform-l10', 0.3, False],
+['uniform-l50', 0.01, False],
 ['uniform-l50', 0.02, False],
 ['uniform-l50', 0.03, False],
 ['uniform-l50', 0.04, False],
-['uniform-l50', 0.07, False],
+['uniform-l50', 0.06, False],
+['uniform-l50', 0.08, False],
 ['uniform-l50', 0.1, False],
-['uniform-l50', 0.13, False],
-['uniform-l50', 0.16, False],
-['uniform-l50', 0.2, False],
-['uniform-l50', 0.25, False],
-['uniform-l50', 0.35, False],
+['uniform-l50', 0.12, False],
+['uniform-l50', 0.15, False],
+['uniform-l50', 0.18, False],
+['uniform-l200', 0.01, False],
 ['uniform-l200', 0.02, False],
 ['uniform-l200', 0.03, False],
 ['uniform-l200', 0.04, False],
-['uniform-l200', 0.06, False],
-['uniform-l200', 0.08, False],
-['uniform-l200', 0.1, False],
+['uniform-l200', 0.05, False],
+['uniform-l200', 0.07, False],
+['uniform-l200', 0.09, False],
+['uniform-l200', 0.11, False],
+['uniform-l200', 0.13, False],
 ['uniform-l200', 0.15, False],
-['uniform-l200', 0.2, False],
-['uniform-l200', 0.25, False],
-['uniform-l200', 0.3, False],
+['uniform-l0-impulse', 0.005, True],
 ['uniform-l0-impulse', 0.01, True],
+['uniform-l0-impulse', 0.015, True],
 ['uniform-l0-impulse', 0.02, True],
 ['uniform-l0-impulse', 0.03, True],
-['uniform-l0-impulse', 0.05, True],
-['uniform-l0-impulse', 0.075, True],
+['uniform-l0-impulse', 0.04, True],
+['uniform-l0-impulse', 0.06, True],
+['uniform-l0-impulse', 0.08, True],
 ['uniform-l0-impulse', 0.1, True],
-['uniform-l0-impulse', 0.15, True],
-['uniform-l0-impulse', 0.2, True],
-['uniform-l0-impulse', 0.25, True],
-['uniform-l0-impulse', 0.3, True]
+['uniform-l0-impulse', 0.12, True]
 ])
 test_on_c = True
 combine_test_corruptions = False #augment the test dataset with all corruptions

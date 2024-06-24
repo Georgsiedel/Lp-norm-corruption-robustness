@@ -16,7 +16,7 @@ from experiments.data_transforms import apply_lp_corruption
 from experiments.normalized_model_wrapper import create_normalized_model_wrapper
 import experiments.adversarial_eval as adv_eval
 
-def compute_metric(loader, net, noise_type, epsilon, max, combine, resize):
+def compute_metric(loader, net, noise_type, combine, resize):
     with torch.no_grad():
         net.eval()
         correct = 0
@@ -25,7 +25,7 @@ def compute_metric(loader, net, noise_type, epsilon, max, combine, resize):
             inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
 
             inputs_pert = apply_lp_corruption(inputs, 8, combine, noise_type,
-                                1, max, noise_type, epsilon)
+                                1, 1.0)
 
             if resize == True:
                 inputs_pert = transforms.Resize(224, antialias=True)(inputs_pert)
@@ -229,14 +229,13 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         adv_acc_aa, mean_dist_aa = adv_eval.compute_adv_acc(autoattack_params, testset, model, workers, batchsize)
         accs = accs + [adv_acc_aa, mean_dist_aa]
     if combine_test_corruptions:
-        acc = compute_metric(test_loader, model, test_corruptions, test_corruptions, test_corruptions,
-                             combine_test_corruptions, resize)
+        acc = compute_metric(test_loader, model, test_corruptions, combine_test_corruptions, resize)
         print(acc, "% Accuracy on combined Lp-norm Test Noise")
         accs.append(acc)
     else:
-        for id, (noise_type, test_epsilon, max) in enumerate(test_corruptions):
-            acc = compute_metric(test_loader, model, noise_type, test_epsilon, max, combine_test_corruptions, resize)
-            print(acc, "% Accuracy on random test corupptions of type:", noise_type, test_epsilon, "with maximal-perturbation =", max)
+        for id, (testcorruption) in enumerate(test_corruptions):
+            acc = compute_metric(test_loader, model, testcorruption, combine_test_corruptions, resize)
+            print(acc, "% Accuracy on random test coruptions of type:", testcorruption)
             accs.append(acc)
 
     return accs
