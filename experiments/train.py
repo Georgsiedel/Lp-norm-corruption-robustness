@@ -17,7 +17,7 @@ import torch.cuda.amp
 import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split
-
+import os
 from experiments.jsd_loss import JsdCrossEntropy
 from experiments.data_transforms import *
 import experiments.checkpoints as checkpoints
@@ -28,6 +28,7 @@ import experiments.models.ImageNet as ImageNet
 import torch.backends.cudnn as cudnn
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #torch.backends.cudnn.enabled = False #this may resolve some cuDNN errors, but increases training time by ~200%
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 torch.cuda.set_device(0)
 cudnn.benchmark = False #this slightly speeds up 32bit precision training (5%)
 
@@ -59,11 +60,7 @@ parser = argparse.ArgumentParser(description='PyTorch Training with perturbation
 parser.add_argument('--resume', type=str2bool, nargs='?', const=False, default=False,
                     help='resuming from saved checkpoint in fixed-path repo defined below')
 parser.add_argument('--id', default=0, type=int, help='ID number of separate experiments with different noise')
-parser.add_argument('--noise', default='standard', type=str, help='type of noise')
-parser.add_argument('--epsilon', default=0.0, type=float, help='perturbation radius')
 parser.add_argument('--run', default=0, type=int, help='run number')
-parser.add_argument('--max', type=str2bool, nargs='?', const=False, default=False,
-                    help='sample max epsilon values only (True) or random uniform values up to max epsilon (False)')
 parser.add_argument('--experiment', default=0, type=int,
                     help='experiment number - each experiment is defined in module config{experiment}')
 parser.add_argument('--batchsize', default=128, type=int,
@@ -115,8 +112,9 @@ parser.add_argument('--normalize', type=str2bool, nargs='?', const=False, defaul
 parser.add_argument('--num_classes', default=10, type=int, help='Number of classes of the dataset')
 parser.add_argument('--pixel_factor', default=1, type=int, help='default is 1 for 32px (CIFAR10), '
                     'e.g. 2 for 64px images. Scales convolutions automatically in the same model architecture')
-parser.add_argument('--noise_patch_lower_scale', default=1.0, type=float,
-                    help='The ratio of the image covered by the selected random noise within a variable format rectangle.')
+parser.add_argument('--noise_patch_scale', default={'lower': 1.0, 'upper': 1.0}, type=str, action=str2dictAction,
+                    metavar='KEY=VALUE', help='The size of the patch covered by the selected random noise as a ratio of the image size.')
+parser.add_argument('--random_noise_dist', default=None, type=str, help='Distribution to sample epsilon of random noise')
 
 args = parser.parse_args()
 configname = (f'experiments.configs.config{args.experiment}')
@@ -152,8 +150,10 @@ def train(pbar):
         #inputs_copy = inputs.clone()
         inputs, targets = apply_mixing_functions(inputs, targets, args.mixup_alpha, args.cutmix_alpha, args.num_classes)
 
-        inputs = apply_lp_corruption(inputs, 8, args.combine_train_corruptions, train_corruptions,
-                                         args.concurrent_combinations, args.noise_patch_lower_scale)
+        inputs = apply_lp_corruption(inputs, minibatchsize=8, combine_train_corruptions=args.combine_train_corruptions,
+                        corruptions=train_corruptions, concurrent_combinations=args.concurrent_combinations,
+                        noise_patch_scale=[list(args.noise_patch_scale.values())[0], list(args.noise_patch_scale.values())[1]],
+                        random_noise_dist=args.random_noise_dist)
         #plot_images(inputs_copy, inputs, 3)
 
         if args.resize == True:
@@ -300,8 +300,12 @@ if __name__ == '__main__':
     total_steps = calculate_steps()
     train_accs, train_losses, valid_accs, valid_losses = [], [], [], []
     training_folder = 'combined' if args.combine_train_corruptions == True else 'separate'
-    filename_spec = str(f"_{args.noise}_eps_{args.epsilon}_{args.max}_" if
-                        args.combine_train_corruptions == False else f"_")
+    if isinstance(train_corruptions[1], dict):
+        string = ','.join([f"{k}={v}" for k, v in train_corruptions[1].items()])
+    else:
+        string = train_corruptions[1]
+    filename_spec = str(f"_{train_corruptions[0]}_{string}_" if
+                        config.combine_train_corruptions == False else f"_")
     start_epoch, end_epoch = 0, args.epochs
 
     # Resume from checkpoint

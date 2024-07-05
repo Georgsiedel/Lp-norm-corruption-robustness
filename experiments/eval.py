@@ -24,8 +24,8 @@ def compute_metric(loader, net, noise_type, combine, resize):
         for batch_idx, (inputs, targets) in enumerate(loader):
             inputs, targets = inputs.to(device, dtype=torch.float), targets.to(device)
 
-            inputs_pert = apply_lp_corruption(inputs, 8, combine, noise_type,
-                                1, 1.0)
+            inputs_pert = apply_lp_corruption(inputs, minibatchsize=8, combine_train_corruptions=combine, corruptions=noise_type,
+                                              concurrent_combinations=1, noise_patch_scale=1.0, random_noise_dist=None)
 
             if resize == True:
                 inputs_pert = transforms.Resize(224, antialias=True)(inputs_pert)
@@ -229,12 +229,12 @@ def eval_metric(modelfilename, test_corruptions, combine_test_corruptions, test_
         adv_acc_aa, mean_dist_aa = adv_eval.compute_adv_acc(autoattack_params, testset, model, workers, batchsize)
         accs = accs + [adv_acc_aa, mean_dist_aa]
     if combine_test_corruptions:
-        acc = compute_metric(test_loader, model, test_corruptions, combine_test_corruptions, resize)
+        acc = compute_metric(test_loader, model, test_corruptions, True, resize)
         print(acc, "% Accuracy on combined Lp-norm Test Noise")
         accs.append(acc)
     else:
         for id, (testcorruption) in enumerate(test_corruptions):
-            acc = compute_metric(test_loader, model, testcorruption, combine_test_corruptions, resize)
+            acc = compute_metric(test_loader, model, testcorruption, False, resize)
             print(acc, "% Accuracy on random test coruptions of type:", testcorruption)
             accs.append(acc)
 

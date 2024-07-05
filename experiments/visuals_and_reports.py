@@ -18,6 +18,17 @@ def plot_images(images, corrupted_images, number):
     #return fig
     plt.show()
 
+def transform_sub_array(sub_arr):
+    first_entry = str(sub_arr[0])
+    second_entry = sub_arr[1]
+
+    if isinstance(second_entry, dict):
+        second_entry = ','.join([f"{k}={v}" for k, v in second_entry.items()])
+    else:
+        second_entry = str(second_entry)
+
+    return [first_entry, second_entry]
+
 def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_corruptions, test_corruptions,
                 combine_train_corruptions, combine_test_corruptions, dataset, modeltype, lrschedule, experiment,
                   test_on_c, calculate_adv_distance, calculate_autoattack_robustness, runs):
@@ -27,7 +38,8 @@ def create_report(avg_test_metrics, max_test_metrics, std_test_metrics, train_co
     if combine_train_corruptions == True:
         train_corruptions_string = ['config_model']
     else:
-        train_corruptions_string = train_corruptions.astype(str)
+        #train_corruptions_string = train_corruptions.astype(str)
+        train_corruptions_string = [transform_sub_array(sub_arr) for sub_arr in train_corruptions]
         train_corruptions_string = np.array([','.join(row) for row in train_corruptions_string])
 
     test_corruptions_string = np.array(['Standard_Acc', 'RMSCE'])

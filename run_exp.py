@@ -10,14 +10,14 @@ if __name__ == '__main__':
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
     #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
-    for experiment in [152,153] + list(range(154,172)):
+    for experiment in [202,203,204,206]:
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
         print('Starting experiment #',experiment, 'on', config.dataset, 'dataset')
         runs = 1
-        if experiment in [152,153]:
+        if experiment in [202,203,204,206]:
             resume = True
         else:
             resume = False
@@ -25,15 +25,16 @@ if __name__ == '__main__':
         for run in range(runs):
             print("Training run #",run)
             if not config.combine_train_corruptions:
-                for id, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
-                    print("Separate corruption training: ", noise_type, train_epsilon, 'and max-training:', max)
+                for id, traincorruption in enumerate(config.train_corruptions):
+                    print("Separate corruption training of type: ", traincorruption)
                     cmd0 = "python experiments/train.py --resume={} --id={} --run={} --experiment={} " \
                            "--epochs={} --learningrate={} --dataset={} --validontest={} --lrschedule={} --lrparams=\"{}\" " \
                            "--earlystop={} --earlystopPatience={} --optimizer={} --optimizerparams=\"{}\" --modeltype={} " \
                            "--modelparams=\"{}\" --resize={} --aug_strat_check={} --train_aug_strat={} --jsd_loss={} " \
                            "--mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} --concurrent_combinations={} " \
                            "--batchsize={} --number_workers={} --lossparams=\"{}\" --RandomEraseProbability={} " \
-                           "--warmupepochs={} --normalize={} --num_classes={} --pixel_factor={} --noise_patch_lower_scale={}"\
+                           "--warmupepochs={} --normalize={} --num_classes={} --pixel_factor={} --noise_patch_scale=\"{}\" " \
+                           "--random_noise_dist={} "\
                         .format(resume, id, run, experiment, config.epochs, config.learningrate,
                                 config.dataset, config.validontest, config.lrschedule, config.lrparams, config.earlystop,
                                 config.earlystopPatience, config.optimizer, config.optimizerparams, config.modeltype,
@@ -41,7 +42,7 @@ if __name__ == '__main__':
                                 config.jsd_loss, config.mixup_alpha, config.cutmix_alpha, config.combine_train_corruptions,
                                 config.concurrent_combinations, config.batchsize, config.number_workers, config.lossparams,
                                 config.RandomEraseProbability, config.warmupepochs, config.normalize, config.num_classes,
-                                config.pixel_factor, config.noise_patch_lower_scale)
+                                config.pixel_factor, config.noise_patch_scale, config.random_noise_dist)
                     os.system(cmd0)
 
             if config.combine_train_corruptions:
@@ -52,7 +53,7 @@ if __name__ == '__main__':
                        "--train_aug_strat={} --jsd_loss={} --mixup_alpha={} --cutmix_alpha={} --combine_train_corruptions={} " \
                        "--concurrent_combinations={} --batchsize={} --number_workers={} --lossparams=\"{}\" " \
                        "--RandomEraseProbability={} --warmupepochs={} --normalize={} --num_classes={} --pixel_factor={} " \
-                       "--noise_patch_lower_scale={}"\
+                       "--noise_patch_scale=\"{}\" --random_noise_dist={} "\
                     .format(resume, run, experiment, config.epochs, config.learningrate, config.dataset, config.validontest,
                             config.lrschedule, config.lrparams, config.earlystop, config.earlystopPatience,
                             config.optimizer, config.optimizerparams, config.modeltype, config.modelparams, config.resize,
@@ -60,10 +61,10 @@ if __name__ == '__main__':
                             config.cutmix_alpha, config.combine_train_corruptions, config.concurrent_combinations,
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
                             config.warmupepochs, config.normalize, config.num_classes, config.pixel_factor,
-                            config.noise_patch_lower_scale)
+                            config.noise_patch_scale, config.random_noise_dist)
                 os.system(cmd0)
 
-        if experiment in [152,153]:
+        if experiment in [204,206]:
             # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
             print('Beginning metric evaluation')
             all_test_metrics = np.empty([config.test_count, config.model_count, runs])
@@ -86,10 +87,17 @@ if __name__ == '__main__':
                     test_metrics[:, 0] = np.array(test_metric_col)
                     print(test_metric_col)
                 else:
-                    for idx, (noise_type, train_epsilon, max) in enumerate(config.train_corruptions):
-                        print("Evaluating model trained on corruption of type: ", noise_type, "with epsilon: ", train_epsilon, "and max-corruption =", max)
-                        filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
-                                   f'{config.lrschedule}_separate_{noise_type}_eps_{train_epsilon}_{max}_run_{run}.pth'
+                    for idx, traincorruption in enumerate(config.train_corruptions):
+                        training_folder = 'combined' if config.combine_train_corruptions == True else 'separate'
+                        if isinstance(traincorruption[1], dict):
+                            string = ','.join([f"{k}={v}" for k,v in traincorruption[1].items()])
+                        else:
+                            string = traincorruption[1]
+                        filename_spec = str(f"_{traincorruption[0]}_{string}_" if
+                                            config.combine_train_corruptions == False else f"_")
+                        print("Evaluating model trained with corruption of type: ", traincorruption)
+                        filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config' \
+                                   f'{experiment}_{config.lrschedule}_{training_folder}{filename_spec}run_{run}.pth'
                         test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
                                                       config.modeltype, config.modelparams, config.resize, config.dataset, 1000,
                                                       config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,

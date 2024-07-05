@@ -29,28 +29,32 @@ def noisy_mix(x, add_noise_level=0.0, mult_noise_level=0.0, sparse_level=0.0):
 
     return mult_noise * x + add_noise
 
-def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
+def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max, random_noise_dist = None):
     with torch.cuda.device(0):
         corruption = torch.zeros(batch.size(), dtype=torch.float16)
+        if random_noise_dist == 'uniform':
+            random_factor = torch.rand(1).item()
+        elif random_noise_dist == 'beta':
+            random_factor = np.random.beta(2, 5)
+        else:
+            random_factor = 1
 
         if noise_type == 'noisy-mix':
-            return noisy_mix(batch, epsilon['add'], epsilon['mult'], epsilon['sparse'])
+            return noisy_mix(batch, float(epsilon['add']),float(epsilon['mult']), float(epsilon['sparse']))
         if noise_type == 'uniform-linf':
             if density_distribution_max == True:  # sample on the hull of the norm ball
                 rand = np.random.random(batch.shape)
                 sign = np.where(rand < 0.5, -1, 1)
-                corruption = torch.from_numpy(sign * epsilon)
+                corruption = torch.from_numpy(sign * float(epsilon) * random_factor)
             else: #sample uniformly inside the norm ball
                 #corruption = torch.cuda.FloatTensor(batch.shape).uniform_(-epsilon, epsilon)
-                corruption = (torch.rand(batch.shape, device=device, dtype=torch.float16) * 2 - 1) * epsilon
-        elif noise_type == 'gaussian': #note that the option density_distribution_max = False here means that epsilon is random uniformly sampled below its value
+                corruption = (torch.rand(batch.shape, device=device, dtype=torch.float16) * 2 - 1) * float(epsilon) * random_factor
+        elif noise_type == 'gaussian': #note that the option density_distribution_max = False here does not do anything
             #corruption = torch.cuda.FloatTensor(batch.shape).normal_(0, epsilon)
-            if density_distribution_max == False:
-                epsilon = torch.rand(1).item() * epsilon
-            corruption = torch.randn(batch.shape, device=device, dtype=torch.float16) * epsilon
+            corruption = torch.randn(batch.shape, device=device, dtype=torch.float16) * float(epsilon) * random_factor
         elif noise_type == 'uniform-l0-impulse':
             num_dimensions = torch.numel(batch[0])
-            num_pixels = int(num_dimensions * epsilon)
+            num_pixels = int(num_dimensions * float(epsilon) * random_factor)
             lower_bounds = torch.arange(0, batch.size(0) * num_dimensions, num_dimensions, device=device)
             upper_bounds = torch.arange(num_dimensions, (batch.size(0) + 1) * num_dimensions, num_dimensions, device=device)
             indices = torch.cat([torch.randint(l, u, (num_pixels,), device=device) for l, u in zip(lower_bounds, upper_bounds)])
@@ -81,7 +85,7 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
                 r = 1
             else:  # uniform density distribution
                 r = dist.Uniform(0, 1).sample() ** (1.0 / d)
-            img_corr = epsilon * r * u * sign / norm #image-sized corruption, epsilon * random radius * random array / normed
+            img_corr = float(epsilon) * random_factor * r * u * sign / norm #image-sized corruption, epsilon * random radius * random array / normed
             corruption = img_corr.expand(batch.size()).to(device)
 
         elif noise_type == 'standard':
@@ -90,7 +94,7 @@ def sample_lp_corr_batch(noise_type, epsilon, batch, density_distribution_max):
             print('Unknown type of noise')
 
     corruption = corruption.to(device)
-    corrupted_batch = batch + corruption
+    corrupted_batch = torch.clamp(batch + corruption, 0, 1)
     return corrupted_batch
 
 def sample_lp_corr_img(noise_type, epsilon, img, density_distribution_max):

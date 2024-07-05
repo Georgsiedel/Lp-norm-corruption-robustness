@@ -247,32 +247,36 @@ def apply_augstrat(batch, train_aug_strat):
 
     return batch
 
-def get_image_mask(batch, noise_patch_lower_scale=1.0, ratio=[0.3, 3.3]):
+def get_image_mask(batch, noise_patch_scale=1.0, ratio=[0.3, 3.3]):
         """Get image mask for Patched Noise (see e.g. Patch Gaussian paper).
         Args:
             batch (Tensor): batch of images to be masked.
             noise_patch_lower_scale (sequence): Lower bound for range of proportion of masked area against input image. Upper bound is 1.0
             ratio (sequence): range of aspect ratio of masked area.
-        """
-        if noise_patch_lower_scale == 1.0:
-            return torch.ones(batch.size(), dtype=torch.bool, device=device)
 
+            This, with the lines below commented out and ratio [1.0,1.0], is the original patch gaussian implementation
+            with square patches the center of which can be anywhere on the image, so the patch may be outside. Consequently,
+            with the lines commented out, you may pass upper scale values higher then 1.0, as 1.0 may not always cover the full image.
+        """
         img_c, img_h, img_w = batch.shape[-3], batch.shape[-2], batch.shape[-1]
         area = img_h * img_w
 
-        log_ratio = torch.log(torch.tensor(ratio))
+        if noise_patch_scale == 1.0 or noise_patch_scale == [1.0, 1.0]:
+            return torch.ones(batch.size(), dtype=torch.bool, device=device)
+        else:
+            patched_area = area * torch.empty(1).uniform_(noise_patch_scale[0], noise_patch_scale[1]).item()
 
-        patched_area = area * torch.empty(1).uniform_(noise_patch_lower_scale, 1.0).item()
+        log_ratio = torch.log(torch.tensor(ratio))
         aspect_ratio = torch.exp(torch.empty(1).uniform_(log_ratio[0], log_ratio[1])).item()
 
         h = int(round(math.sqrt(patched_area * aspect_ratio)))
         w = int(round(math.sqrt(patched_area / aspect_ratio)))
-        if h > img_h:
-            h = img_h
-            w = int(round(img_w * patched_area / area)) #reset patched area ratio when patch needs to be cropped due to aspect ratio
-        if w > img_w:
-            w = img_w
-            h = int(round(img_h * patched_area / area)) #reset patched area ratio when patch needs to be cropped due to aspect ratio
+        #if h > img_h:
+        #    h = img_h
+        #    w = int(round(img_w * patched_area / area)) #reset patched area ratio when patch needs to be cropped due to aspect ratio
+        #if w > img_w:
+        #    w = img_w
+        #    h = int(round(img_h * patched_area / area)) #reset patched area ratio when patch needs to be cropped due to aspect ratio
         i = torch.randint(0, img_h + 1, size=(1,)).item()
         j = torch.randint(0, img_w + 1, size=(1,)).item()
         lower_y = int(round(i-h/2 if i-h/2 >= 0 else 0))
@@ -284,19 +288,21 @@ def get_image_mask(batch, noise_patch_lower_scale=1.0, ratio=[0.3, 3.3]):
 
         return mask
 
-def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, train_corruptions, concurrent_combinations, noise_patch_lower_scale=1.0):
+def apply_lp_corruption(batch, minibatchsize, combine_train_corruptions, corruptions, concurrent_combinations,
+                        noise_patch_scale=1.0, random_noise_dist=None):
 
     minibatches = batch.view(-1, minibatchsize, batch.size()[1], batch.size()[2], batch.size()[3])
 
     for id, minibatch in enumerate(minibatches):
         if combine_train_corruptions == True:
-            corruptions_list = random.sample(list(train_corruptions), k=concurrent_combinations)
+            corruptions_list = random.sample(list(corruptions), k=concurrent_combinations)
             for x, (noise_type, train_epsilon, max) in enumerate(corruptions_list):
-                train_epsilon = float(train_epsilon)
-                noisy_minibatch = sample_lp_corr_batch(noise_type, train_epsilon, minibatch, max)
+                bool_max = max == True
+                noisy_minibatch = sample_lp_corr_batch(noise_type, train_epsilon, minibatch, bool_max, random_noise_dist)
         else:
-            noisy_minibatch = sample_lp_corr_batch(train_corruptions[0], train_corruptions[1], minibatch, train_corruptions[2])
-        patch_mask = get_image_mask(minibatch, noise_patch_lower_scale=noise_patch_lower_scale, ratio=[1.0, 1.0])
+            bool_max = corruptions[2]==True
+            noisy_minibatch = sample_lp_corr_batch(corruptions[0], corruptions[1], minibatch, bool_max, random_noise_dist)
+        patch_mask = get_image_mask(minibatch, noise_patch_scale=noise_patch_scale, ratio=[1.0, 1.0])
         final_minibatch = torch.where(patch_mask, noisy_minibatch, minibatch)
         minibatches[id] = final_minibatch
     batch = minibatches.view(-1, batch.size()[1], batch.size()[2], batch.size()[3])
