@@ -6,11 +6,11 @@ train_corruptions = np.array([
 ['uniform-l0.5', 800000.0, False],
 ['uniform-l1', 400.0, False],
 ['uniform-l2', 10.0, False],
+['uniform-l5', 1.2, False],
 ['uniform-l10', 0.6, False],
 ['uniform-l50', 0.36, False],
 ['uniform-l200', 0.3, False],
-['uniform-l0-impulse', 0.20, True],
-['uniform-l0-impulse', 0.25, False]
+['uniform-l0-impulse', 0.24, True],
 ])
 noise_patch_scale = {'lower': 0.5, 'upper': 1.0}
 random_noise_dist = 'uniform'
