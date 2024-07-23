@@ -1,5 +1,7 @@
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"  #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
 
 if __name__ == '__main__':
     import numpy as np
@@ -7,22 +9,19 @@ if __name__ == '__main__':
     from experiments.eval import eval_metric
     from experiments.visuals_and_reports import create_report
 
-    os.environ["CUDA_LAUNCH_BLOCKING"] = "1" #prevents "CUDA error: unspecified launch failure" and is recommended for some illegal memory access errors #increases train time by ~5-15%
-    #os.environ["CUDA_VISIBLE_DEVICES"] = "1" #this blocks the spawn of multiple workers
-
-    for experiment in [182,183,174,175,176] + [172,173,177,178,179,180,181]:
+    for experiment in list(range(220,226)) + list(range(208,220)):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
         print('Starting experiment #',experiment, 'on', config.dataset, 'dataset')
-        runs = 5
+        runs = 1
         if experiment in []:
             resume = True
         else:
             resume = False
 
-        for run in [4]:
+        for run in range(runs):
             print("Training run #",run)
             if not config.combine_train_corruptions:
                 for id, traincorruption in enumerate(config.train_corruptions):
@@ -43,8 +42,8 @@ if __name__ == '__main__':
                                 config.concurrent_combinations, config.batchsize, config.number_workers, config.lossparams,
                                 config.RandomEraseProbability, config.warmupepochs, config.normalize, config.num_classes,
                                 config.pixel_factor, config.noise_patch_scale, config.random_noise_dist)
-                    if experiment in [172,173,177,178,179,180,181]:
-                        print('skip')
+                    if experiment in []:
+                        print('skip training')
                     else:
                         os.system(cmd0)
 
@@ -65,12 +64,12 @@ if __name__ == '__main__':
                             config.batchsize, config.number_workers, config.lossparams, config.RandomEraseProbability,
                             config.warmupepochs, config.normalize, config.num_classes, config.pixel_factor,
                             config.noise_patch_scale, config.random_noise_dist)
-                if experiment in [172,173,177,178,179,180,181]:
-                    print('skip')
+                if experiment in []:
+                    print('skip training')
                 else:
                     os.system(cmd0)
 
-        if experiment in [192,182,183,174,175,176] + [172,173,177,178,179,180,181]:
+        if experiment in []:
             # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
             print('Beginning metric evaluation')
             all_test_metrics = np.empty([config.test_count, config.model_count, runs])
