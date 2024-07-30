@@ -9,20 +9,22 @@ if __name__ == '__main__':
     from experiments.eval import eval_metric
     from experiments.visuals_and_reports import create_report
 
-    for experiment in list(range(220,226)) + list(range(208,220)):
+    for experiment in [216,210,219]:
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
 
         print('Starting experiment #',experiment, 'on', config.dataset, 'dataset')
-        runs = 1
-        if experiment in []:
-            resume = True
-        else:
-            resume = False
+        runs = 5
 
         for run in range(runs):
             print("Training run #",run)
+
+            if experiment in range(208,220):
+                resume = True
+            else:
+                resume = False
+
             if not config.combine_train_corruptions:
                 for id, traincorruption in enumerate(config.train_corruptions):
                     print("Separate corruption training of type: ", traincorruption)
@@ -69,7 +71,7 @@ if __name__ == '__main__':
                 else:
                     os.system(cmd0)
 
-        if experiment in []:
+        if experiment in [210,211,212,213,214,215,216,219]:#
             # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
             print('Beginning metric evaluation')
             all_test_metrics = np.empty([config.test_count, config.model_count, runs])
@@ -86,8 +88,8 @@ if __name__ == '__main__':
                     filename = f'./experiments/trained_models/{config.dataset}/{config.modeltype}/config{experiment}_' \
                                f'{config.lrschedule}_combined_run_{run}.pth'
                     test_metric_col = eval_metric(filename, config.test_corruptions, config.combine_test_corruptions, config.test_on_c,
-                                                  config.modeltype, config.modelparams, config.resize, config.dataset, 2048,
-                                                  config.number_workers, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
+                                                  config.modeltype, config.modelparams, config.resize, config.dataset, 1024,
+                                                  0, config.normalize, config.calculate_adv_distance, config.adv_distance_params,
                                                   config.calculate_autoattack_robustness, config.autoattack_params, config.pixel_factor)
                     test_metrics[:, 0] = np.array(test_metric_col)
                     print(test_metric_col)
