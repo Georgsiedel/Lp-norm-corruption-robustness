@@ -9,7 +9,7 @@ if __name__ == '__main__':
     from experiments.eval import eval_metric
     from experiments.visuals_and_reports import create_report
 
-    for experiment in [216,210,219]:
+    for experiment in [218]:
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
@@ -20,10 +20,7 @@ if __name__ == '__main__':
         for run in range(runs):
             print("Training run #",run)
 
-            if experiment in range(208,220):
-                resume = True
-            else:
-                resume = False
+            resume = True
 
             if not config.combine_train_corruptions:
                 for id, traincorruption in enumerate(config.train_corruptions):
@@ -71,7 +68,7 @@ if __name__ == '__main__':
                 else:
                     os.system(cmd0)
 
-        if experiment in [210,211,212,213,214,215,216,219]:#
+        if experiment in [218,219]:#
             # Calculate accuracy and robust accuracy, evaluating each trained network on each corruption
             print('Beginning metric evaluation')
             all_test_metrics = np.empty([config.test_count, config.model_count, runs])
