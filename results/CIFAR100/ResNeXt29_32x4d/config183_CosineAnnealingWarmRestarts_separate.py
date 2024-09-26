@@ -4,7 +4,7 @@ import torchvision.models.mobilenet
 train_corruptions = np.array([
 ['gaussian', 0.2, False],
 ])
-noise_patch_scale = {'lower': 0.5, 'upper': 1.0}
+noise_patch_scale = {'lower': 0.2, 'upper': 0.7}
 random_noise_dist = 'uniform'
 
 

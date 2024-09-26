@@ -151,6 +151,7 @@ def sample_lp_corr_img(noise_type, epsilon, img, density_distribution_max):
             corr = epsilon * r * u * sign / norm  #image-sized corruption, epsilon * random radius * random array / normed
             img_corr = img + corr  # construct corrupted image by adding sampled noise
             img_corr = np.clip(img_corr, 0, 1) #clip values below 0 and over 1
+
         else:
             img_corr = img
             print('Unknown type of noise')

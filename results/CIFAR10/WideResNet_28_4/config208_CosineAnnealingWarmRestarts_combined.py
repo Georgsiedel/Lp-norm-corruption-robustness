@@ -6,7 +6,7 @@ train_corruptions = np.array([
 ['uniform-l2', 10.0, False],
 ['uniform-l0-impulse', 0.24, True],
 ])
-noise_patch_scale = {'lower': 0.5, 'upper': 1.0}
+noise_patch_scale = {'lower': 0.2, 'upper': 0.7}
 random_noise_dist = 'uniform'
 
 batchsize = 384

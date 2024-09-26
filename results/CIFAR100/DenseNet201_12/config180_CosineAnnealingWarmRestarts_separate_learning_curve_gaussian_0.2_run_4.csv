@@ -1,0 +1,2 @@
+train_accuracy;train_loss;valid_accuracy;valid_loss
+10,0540;3,8833;10,9000;3,8853
