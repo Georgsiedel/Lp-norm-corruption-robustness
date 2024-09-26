@@ -9,7 +9,7 @@ if __name__ == '__main__':
     from experiments.eval import eval_metric
     from experiments.visuals_and_reports import create_report
 
-    for experiment in list(range(175,184)) + list(range(208,220)) + list(range(175,184)) + list(range(208,220)):
+    for experiment in list(range(175,184)) + list(range(208,211)) + list(range(175,184)) + list(range(208,211)) + list(range(175,184)) + list(range(208,211)):
 
         configname = (f'experiments.configs.config{experiment}')
         config = importlib.import_module(configname)
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         for run in range(runs):
             print("Training run #",run)
 
-            if experiment in list(range(175,220)):
+            if experiment in list(range(175,184)) + list(range(208,211)):
                 resume = True
             else:
                 resume = False
