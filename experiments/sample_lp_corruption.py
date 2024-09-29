@@ -6,7 +6,6 @@ import torchvision.transforms as transforms
 from skimage.util import random_noise
 import numpy as np
 import random
-import math
 import matplotlib.pyplot as plt
 import torch.distributions as dist
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
