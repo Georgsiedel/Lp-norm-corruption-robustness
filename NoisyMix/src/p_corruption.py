@@ -16,7 +16,7 @@ train_corruptions = np.array([
 ['uniform-l2', 5.0, False],
 ['uniform-l0-impulse', 0.12, True],
 ])
-noise_patch_scale = {'lower': 0.5, 'upper': 1.0}
+noise_patch_scale = {'lower': 1.0, 'upper': 1.0}
 random_noise_dist = 'uniform'
 
 def get_image_mask(batch, noise_patch_scale=1.0, ratio=[0.3, 3.3]):
