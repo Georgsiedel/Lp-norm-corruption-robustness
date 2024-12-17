@@ -10,3 +10,4 @@ experiments/configs/__pycache__
 experiments/models/__pycache__
 .idea/
 organizational/
+.venv/
